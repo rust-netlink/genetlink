@@ -17,12 +17,13 @@ use std::io;
 /// - a connection handle to interact with the connection
 /// - a receiver of the unsolicited messages
 ///
-/// The connection object is also a event loop which implements [`std::future::Future`].
-/// In most cases, users spawn it on an async runtime and use the handle to send
-/// messages. For detailed documentation, please refer to [`netlink_proto::new_connection`].
+/// The connection object is also a event loop which implements
+/// [`std::future::Future`]. In most cases, users spawn it on an async runtime
+/// and use the handle to send messages. For detailed documentation, please
+/// refer to [`netlink_proto::new_connection`].
 ///
-/// The [`GenetlinkHandle`] can send and receive any type of generic netlink message.
-/// And it can automatic resolve the generic family id before sending.
+/// The [`GenetlinkHandle`] can send and receive any type of generic netlink
+/// message. And it can automatic resolve the generic family id before sending.
 #[cfg(feature = "tokio_socket")]
 #[allow(clippy::type_complexity)]
 pub fn new_connection() -> io::Result<(
@@ -33,7 +34,8 @@ pub fn new_connection() -> io::Result<(
     new_connection_with_socket()
 }
 
-/// Variant of [`new_connection`] that allows specifying a socket type to use for async handling
+/// Variant of [`new_connection`] that allows specifying a socket type to use
+/// for async handling
 #[allow(clippy::type_complexity)]
 pub fn new_connection_with_socket<S>() -> io::Result<(
     Connection<RawGenlMessage, S>,
@@ -43,6 +45,7 @@ pub fn new_connection_with_socket<S>() -> io::Result<(
 where
     S: AsyncSocket,
 {
-    let (conn, handle, messages) = netlink_proto::new_connection_with_socket(NETLINK_GENERIC)?;
+    let (conn, handle, messages) =
+        netlink_proto::new_connection_with_socket(NETLINK_GENERIC)?;
     Ok((conn, GenetlinkHandle::new(handle), messages))
 }

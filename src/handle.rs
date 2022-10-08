@@ -19,24 +19,28 @@ use std::{fmt::Debug, sync::Arc};
 ///
 /// # Family id resolving
 /// There is a resolver with cache inside each connection. When you send generic
-/// netlink message, the handle resolves and fills the family id into the message.
+/// netlink message, the handle resolves and fills the family id into the
+/// message.
 ///
-/// Since the resolver is created in [`new_connection()`](crate::new_connection),
-/// the cache state wouldn't share between different connections.
+/// Since the resolver is created in
+/// [`new_connection()`](crate::new_connection), the cache state wouldn't share
+/// between different connections.
 ///
-/// P.s. The cloned handles use the same connection with the original handle. So,
-/// they share the same cache state.
+/// P.s. The cloned handles use the same connection with the original handle.
+/// So, they share the same cache state.
 ///
 /// # Detailed process of sending generic messages
 /// 1. Check if the message's family id is resolved. If yes, jump to step 6.
 /// 2. Query the family id using the builtin resolver.
 /// 3. If the id is in the cache, returning the id in the cache and skip step 4.
-/// 4. The resolver sends `CTRL_CMD_GETFAMILY` request to get the id and records it in the cache.
-/// 5. fill the family id using [`GenlMessage::set_resolved_family_id()`].
-/// 6. Serialize the payload to [`RawGenlMessage`].
-/// 7. Send it through the connection.
-///     - The family id filled into `message_type` field in [`NetlinkMessage::finalize()`].
-/// 8. In the response stream, deserialize the payload back to [`GenlMessage<F>`].
+/// 4. The resolver sends `CTRL_CMD_GETFAMILY` request to get the id and records
+/// it in the cache. 5. fill the family id using
+/// [`GenlMessage::set_resolved_family_id()`]. 6. Serialize the payload to
+/// [`RawGenlMessage`]. 7. Send it through the connection.
+///     - The family id filled into `message_type` field in
+///       [`NetlinkMessage::finalize()`].
+/// 8. In the response stream, deserialize the payload back to
+/// [`GenlMessage<F>`].
 #[derive(Clone, Debug)]
 pub struct GenetlinkHandle {
     handle: ConnectionHandle<RawGenlMessage>,
@@ -80,7 +84,10 @@ impl GenetlinkHandle {
         GenetlinkError,
     >
     where
-        F: GenlFamily + Emitable + ParseableParametrized<[u8], GenlHeader> + Debug,
+        F: GenlFamily
+            + Emitable
+            + ParseableParametrized<[u8], GenlHeader>
+            + Debug,
     {
         self.resolve_message_family_id(&mut message).await?;
         self.send_request(message)
@@ -88,8 +95,8 @@ impl GenetlinkHandle {
 
     /// Send the request without resolving family id
     ///
-    /// This function is identical to [`request()`](Self::request) but it doesn't
-    /// resolve the family id for you.
+    /// This function is identical to [`request()`](Self::request) but it
+    /// doesn't resolve the family id for you.
     pub fn send_request<F>(
         &mut self,
         message: NetlinkMessage<GenlMessage<F>>,
@@ -98,7 +105,10 @@ impl GenetlinkHandle {
         GenetlinkError,
     >
     where
-        F: GenlFamily + Emitable + ParseableParametrized<[u8], GenlHeader> + Debug,
+        F: GenlFamily
+            + Emitable
+            + ParseableParametrized<[u8], GenlHeader>
+            + Debug,
     {
         let raw_msg = map_to_rawgenlmsg(message);
 
@@ -112,7 +122,10 @@ impl GenetlinkHandle {
         mut message: NetlinkMessage<GenlMessage<F>>,
     ) -> Result<(), GenetlinkError>
     where
-        F: GenlFamily + Emitable + ParseableParametrized<[u8], GenlHeader> + Debug,
+        F: GenlFamily
+            + Emitable
+            + ParseableParametrized<[u8], GenlHeader>
+            + Debug,
     {
         self.resolve_message_family_id(&mut message).await?;
         self.send_notify(message)
@@ -124,7 +137,10 @@ impl GenetlinkHandle {
         message: NetlinkMessage<GenlMessage<F>>,
     ) -> Result<(), GenetlinkError>
     where
-        F: GenlFamily + Emitable + ParseableParametrized<[u8], GenlHeader> + Debug,
+        F: GenlFamily
+            + Emitable
+            + ParseableParametrized<[u8], GenlHeader>
+            + Debug,
     {
         let raw_msg = map_to_rawgenlmsg(message);
 
