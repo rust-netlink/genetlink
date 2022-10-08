@@ -3,27 +3,25 @@
 //! Raw generic netlink payload message
 //!
 //! # Design
-//! Since we use generic type to represent different generic family's message type,
-//! and it is not easy to create a underlying [`netlink_proto::new_connection()`]
-//! with trait object to multiplex different generic netlink family's message.
+//! Since we use generic type to represent different generic family's message
+//! type, and it is not easy to create a underlying
+//! [`netlink_proto::new_connection()`] with trait object to multiplex different
+//! generic netlink family's message.
 //!
 //! Therefore, I decided to serialize the generic type payload into bytes before
-//! sending to the underlying connection. The [`RawGenlMessage`] is meant for this.
+//! sending to the underlying connection. The [`RawGenlMessage`] is meant for
+//! this.
 //!
 //! This special message doesn't use generic type and its payload is `Vec<u8>`.
 //! Therefore, its type is easier to use.
 //!
-//! Another advantage is that it can let users know when the generic netlink payload
-//! fails to decode instead of just dropping the messages.
+//! Another advantage is that it can let users know when the generic netlink
+//! payload fails to decode instead of just dropping the messages.
 //! (`netlink_proto` would drop messages if they fails to decode.)
 //! I think this can help developers debug their deserializing implementation.
 use netlink_packet_core::{
-    DecodeError,
-    NetlinkDeserializable,
-    NetlinkHeader,
-    NetlinkMessage,
-    NetlinkPayload,
-    NetlinkSerializable,
+    DecodeError, NetlinkDeserializable, NetlinkHeader, NetlinkMessage,
+    NetlinkPayload, NetlinkSerializable,
 };
 use netlink_packet_generic::{GenlBuffer, GenlFamily, GenlHeader, GenlMessage};
 use netlink_packet_utils::{Emitable, Parseable, ParseableParametrized};
@@ -32,8 +30,8 @@ use std::fmt::Debug;
 /// Message type to hold serialized generic netlink payload
 ///
 /// **Note** This message type is not intend to be used by normal users, unless
-/// you need to use the `UnboundedReceiver<(NetlinkMessage<RawGenlMessage>, SocketAddr)>`
-/// return by [`new_connection()`](crate::new_connection)
+/// you need to use the `UnboundedReceiver<(NetlinkMessage<RawGenlMessage>,
+/// SocketAddr)>` return by [`new_connection()`](crate::new_connection)
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RawGenlMessage {
     pub header: GenlHeader,
@@ -98,7 +96,10 @@ impl<'a, T> ParseableParametrized<GenlBuffer<&'a T>, u16> for RawGenlMessage
 where
     T: AsRef<[u8]> + ?Sized,
 {
-    fn parse_with_param(buf: &GenlBuffer<&'a T>, message_type: u16) -> Result<Self, DecodeError> {
+    fn parse_with_param(
+        buf: &GenlBuffer<&'a T>,
+        message_type: u16,
+    ) -> Result<Self, DecodeError> {
         let header = GenlHeader::parse(buf)?;
         let payload_buf = buf.payload();
         Ok(RawGenlMessage::new(
@@ -125,7 +126,10 @@ impl NetlinkSerializable for RawGenlMessage {
 
 impl NetlinkDeserializable for RawGenlMessage {
     type Error = DecodeError;
-    fn deserialize(header: &NetlinkHeader, payload: &[u8]) -> Result<Self, Self::Error> {
+    fn deserialize(
+        header: &NetlinkHeader,
+        payload: &[u8],
+    ) -> Result<Self, Self::Error> {
         let buffer = GenlBuffer::new_checked(payload)?;
         RawGenlMessage::parse_with_param(&buffer, header.message_type)
     }

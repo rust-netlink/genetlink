@@ -35,12 +35,16 @@ impl Resolver {
         } else {
             let mut handle = handle.clone();
             Either::Right(async move {
-                let mut genlmsg: GenlMessage<GenlCtrl> = GenlMessage::from_payload(GenlCtrl {
-                    cmd: GenlCtrlCmd::GetFamily,
-                    nlas: vec![GenlCtrlAttrs::FamilyName(family_name.to_owned())],
-                });
+                let mut genlmsg: GenlMessage<GenlCtrl> =
+                    GenlMessage::from_payload(GenlCtrl {
+                        cmd: GenlCtrlCmd::GetFamily,
+                        nlas: vec![GenlCtrlAttrs::FamilyName(
+                            family_name.to_owned(),
+                        )],
+                    });
                 genlmsg.finalize();
-                // We don't have to set family id here, since nlctrl has static family id (0x10)
+                // We don't have to set family id here, since nlctrl has static
+                // family id (0x10)
                 let mut nlmsg = NetlinkMessage::from(genlmsg);
                 nlmsg.header.flags = NLM_F_REQUEST;
                 nlmsg.finalize();
@@ -99,7 +103,8 @@ mod test {
 
         let mut resolver = Resolver::new();
         // nlctrl should always be 0x10
-        let nlctrl_fid = resolver.query_family_id(&handle, "nlctrl").await.unwrap();
+        let nlctrl_fid =
+            resolver.query_family_id(&handle, "nlctrl").await.unwrap();
         assert_eq!(nlctrl_fid, 0x10);
     }
 

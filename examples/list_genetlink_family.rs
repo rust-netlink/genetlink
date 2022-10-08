@@ -2,18 +2,15 @@
 
 //! Example of listing generic families based on `netlink_proto`
 //!
-//! This example's functionality is same as the identical name example in `netlink_packet_generic`.
-//! But this example shows you the usage of this crate to run generic netlink protocol asynchronously.
+//! This example's functionality is same as the identical name example in
+//! `netlink_packet_generic`. But this example shows you the usage of this crate
+//! to run generic netlink protocol asynchronously.
 
 use anyhow::{bail, Error};
 use futures::StreamExt;
 use genetlink::new_connection;
 use netlink_packet_core::{
-    NetlinkHeader,
-    NetlinkMessage,
-    NetlinkPayload,
-    NLM_F_DUMP,
-    NLM_F_REQUEST,
+    NetlinkHeader, NetlinkMessage, NetlinkPayload, NLM_F_DUMP, NLM_F_REQUEST,
 };
 use netlink_packet_generic::{
     ctrl::{nlas::GenlCtrlAttrs, GenlCtrl, GenlCtrlCmd},
