@@ -42,11 +42,11 @@ async fn main() -> Result<(), Error> {
         match resp.payload {
             NetlinkPayload::InnerMessage(genlmsg) => {
                 if genlmsg.payload.cmd == GenlCtrlCmd::GetPolicy {
-                    println!("<<< {:?}", genlmsg);
+                    println!("<<< {genlmsg:?}");
                 }
             }
             NetlinkPayload::Error(err) => {
-                eprintln!("Received a netlink error message: {:?}", err);
+                eprintln!("Received a netlink error message: {err:?}");
                 bail!(err);
             }
             _ => {}

@@ -43,7 +43,7 @@ async fn main() -> Result<(), Error> {
                 }
             }
             NetlinkPayload::Error(err) => {
-                eprintln!("Received a netlink error message: {:?}", err);
+                eprintln!("Received a netlink error message: {err:?}");
                 bail!(err);
             }
             _ => {}
@@ -96,11 +96,11 @@ fn print_entry(entry: Vec<GenlCtrlAttrs>) {
         .expect("Cannot find HdrSize attribute");
 
     if hdrsize == 0 {
-        println!("0x{:04x} {} [Version {}]", family_id, family_name, version);
+        println!("0x{family_id:04x} {family_name} [Version {version}]");
     } else {
         println!(
-            "0x{:04x} {} [Version {}] [Header {} bytes]",
-            family_id, family_name, version, hdrsize
+            "0x{family_id:04x} {family_name} [Version {version}] \
+            [Header {hdrsize} bytes]"
         );
     }
 }
