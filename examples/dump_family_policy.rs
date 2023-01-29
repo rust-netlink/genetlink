@@ -21,18 +21,17 @@ async fn main() -> Result<(), Error> {
         eprintln!("Usage: dump_family_policy <family name>");
         bail!("Required arguments not given");
     }
+    let mut nl_hdr = NetlinkHeader::default();
+    nl_hdr.flags = NLM_F_REQUEST | NLM_F_DUMP;
 
-    let nlmsg = NetlinkMessage {
-        header: NetlinkHeader {
-            flags: NLM_F_REQUEST | NLM_F_DUMP,
-            ..Default::default()
-        },
-        payload: GenlMessage::from_payload(GenlCtrl {
+    let nlmsg = NetlinkMessage::new(
+        nl_hdr,
+        GenlMessage::from_payload(GenlCtrl {
             cmd: GenlCtrlCmd::GetPolicy,
             nlas: vec![GenlCtrlAttrs::FamilyName(argv[1].to_owned())],
         })
         .into(),
-    };
+    );
     let (conn, mut handle, _) = new_connection()?;
     tokio::spawn(conn);
 

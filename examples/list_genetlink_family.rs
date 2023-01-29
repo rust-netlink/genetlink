@@ -19,17 +19,16 @@ use netlink_packet_generic::{
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    let nlmsg = NetlinkMessage {
-        header: NetlinkHeader {
-            flags: NLM_F_REQUEST | NLM_F_DUMP,
-            ..Default::default()
-        },
-        payload: GenlMessage::from_payload(GenlCtrl {
+    let mut nl_hdr = NetlinkHeader::default();
+    nl_hdr.flags = NLM_F_REQUEST | NLM_F_DUMP;
+    let nlmsg = NetlinkMessage::new(
+        nl_hdr,
+        GenlMessage::from_payload(GenlCtrl {
             cmd: GenlCtrlCmd::GetFamily,
             nlas: vec![],
         })
         .into(),
-    };
+    );
     let (conn, mut handle, _) = new_connection()?;
     tokio::spawn(conn);
 
