@@ -143,16 +143,16 @@ mod test {
                 })
                 .unwrap();
             if id == 0 {
-                eprintln!(
-                    "Generic family \"{}\" not exist or not loaded in this environment. Ignored.",
-                    name
+                log::warn!(
+                    "Generic family \"{name}\" not exist or not loaded \
+                    in this environment. Ignored."
                 );
                 continue;
             }
 
             let cache = resolver.get_cache_by_name(name).unwrap();
             assert_eq!(id, cache);
-            eprintln!("{:?}", (name, cache));
+            log::warn!("{:?}", (name, cache));
         }
     }
 }
