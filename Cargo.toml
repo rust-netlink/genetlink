@@ -7,7 +7,7 @@ homepage = "https://github.com/rust-netlink/genetlink"
 repository = "https://github.com/rust-netlink/genetlink"
 keywords = ["netlink", "linux"]
 license = "MIT"
-readme = "../README.md"
+readme = "README.md"
 description = "communicate with generic netlink"
 
 [features]
