@@ -6,9 +6,9 @@ use crate::{
     resolver::Resolver,
 };
 use futures::{lock::Mutex, Stream, StreamExt};
-use netlink_packet_core::{DecodeError, NetlinkMessage, NetlinkPayload};
+use netlink_packet_core::{NetlinkMessage, NetlinkPayload};
 use netlink_packet_generic::{GenlFamily, GenlHeader, GenlMessage};
-use netlink_packet_utils::{Emitable, ParseableParametrized};
+use netlink_packet_utils::{DecodeError, Emitable, ParseableParametrized};
 use netlink_proto::{sys::SocketAddr, ConnectionHandle};
 use std::{fmt::Debug, sync::Arc};
 
