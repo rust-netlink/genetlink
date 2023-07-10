@@ -155,9 +155,8 @@ where
         NetlinkPayload::InnerMessage(genlmsg) => {
             NetlinkPayload::InnerMessage(RawGenlMessage::from_genlmsg(genlmsg))
         }
-        NetlinkPayload::Done => NetlinkPayload::Done,
+        NetlinkPayload::Done(i) => NetlinkPayload::Done(i),
         NetlinkPayload::Error(i) => NetlinkPayload::Error(i),
-        NetlinkPayload::Ack(i) => NetlinkPayload::Ack(i),
         NetlinkPayload::Noop => NetlinkPayload::Noop,
         NetlinkPayload::Overrun(i) => NetlinkPayload::Overrun(i),
         i => {
@@ -183,9 +182,8 @@ where
         NetlinkPayload::InnerMessage(raw_genlmsg) => {
             NetlinkPayload::InnerMessage(raw_genlmsg.parse_into_genlmsg()?)
         }
-        NetlinkPayload::Done => NetlinkPayload::Done,
+        NetlinkPayload::Done(i) => NetlinkPayload::Done(i),
         NetlinkPayload::Error(i) => NetlinkPayload::Error(i),
-        NetlinkPayload::Ack(i) => NetlinkPayload::Ack(i),
         NetlinkPayload::Noop => NetlinkPayload::Noop,
         NetlinkPayload::Overrun(i) => NetlinkPayload::Overrun(i),
         i => {
