@@ -90,7 +90,7 @@ impl Resolver {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, tokio_socket))]
 mod test {
     use super::*;
     use crate::new_connection;
