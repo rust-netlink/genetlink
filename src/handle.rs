@@ -6,11 +6,12 @@ use crate::{
     resolver::Resolver,
 };
 use futures::{lock::Mutex, Stream, StreamExt};
+use log::trace;
 use netlink_packet_core::{NetlinkMessage, NetlinkPayload};
 use netlink_packet_generic::{GenlFamily, GenlHeader, GenlMessage};
 use netlink_packet_utils::{DecodeError, Emitable, ParseableParametrized};
 use netlink_proto::{sys::SocketAddr, ConnectionHandle};
-use std::{fmt::Debug, sync::Arc};
+use std::{collections::HashMap, fmt::Debug, sync::Arc};
 
 /// The generic netlink connection handle
 ///
@@ -64,6 +65,19 @@ impl GenetlinkHandle {
             .lock()
             .await
             .query_family_id(self, F::family_name())
+            .await
+    }
+
+    /// Resolve the multicast groups of the given [`GenlFamily`].
+    pub async fn resolve_mcast_groups<F>(&self) -> Result<HashMap<String, u32>, GenetlinkError>
+    where
+        F: GenlFamily,
+    {
+        trace!("Requesting Groups from Resolver: {:?}", F::family_name());
+        self.resolver
+            .lock()
+            .await
+            .query_family_multicast_groups(self, F::family_name())
             .await
     }
 
