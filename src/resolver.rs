@@ -261,6 +261,9 @@ mod test {
                 continue;
             }
 
+            let cache = resolver.get_cache_by_name(name).unwrap();
+            assert_eq!(id, cache);
+
             let mcast_groups = resolver
                 .query_family_multicast_groups(&handle, name)
                 .await
