@@ -79,6 +79,7 @@ impl Resolver {
                                     )
                                 })?;
 
+                            
                             self.cache.insert(family_name, family_id);
                             return Ok(family_id);
                         }
@@ -260,8 +261,32 @@ mod test {
                 continue;
             }
 
-            let cache = resolver.get_cache_by_name(name).unwrap();
-            assert_eq!(id, cache);
+            let mcast_groups = resolver
+                .query_family_multicast_groups(&handle, name)
+                .await
+                .or_else(|e| {
+                    if let GenetlinkError::NetlinkError(io_err) = &e {
+                        if io_err.kind() == ErrorKind::NotFound {
+                            // Ignore non exist entries
+                            Ok(0)
+                        } else {
+                            Err(e)
+                        }
+                    } else {
+                        Err(e)
+                    }
+                })
+                .unwrap();
+            if mcast_groups.is_empty() {
+                log::warn!(
+                    "Generic family \"{name}\" not exist or not loaded \
+                    in this environment. Ignored."
+                );
+                continue;
+            }
+
+            let cache = resolver.get_groups_cache_by_name(name).unwrap();
+            assert_eq!(mcast_groups, cache);
             log::warn!("{:?}", (name, cache));
         }
     }
