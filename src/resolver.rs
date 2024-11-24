@@ -79,7 +79,6 @@ impl Resolver {
                                     )
                                 })?;
 
-                            
                             self.cache.insert(family_name, family_id);
                             return Ok(family_id);
                         }
