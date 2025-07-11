@@ -90,7 +90,7 @@ impl Resolver {
     }
 }
 
-#[cfg(all(test, tokio_socket))]
+#[cfg(all(test, feature = "tokio_socket"))]
 mod test {
     use super::*;
     use crate::new_connection;
