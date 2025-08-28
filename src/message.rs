@@ -20,13 +20,11 @@
 //! (`netlink_proto` would drop messages if they fails to decode.)
 //! I think this can help developers debug their deserializing implementation.
 use netlink_packet_core::{
-    NetlinkDeserializable, NetlinkHeader, NetlinkMessage, NetlinkPayload,
-    NetlinkSerializable,
+    DecodeError, Emitable, NetlinkDeserializable, NetlinkHeader,
+    NetlinkMessage, NetlinkPayload, NetlinkSerializable, Parseable,
+    ParseableParametrized,
 };
 use netlink_packet_generic::{GenlBuffer, GenlFamily, GenlHeader, GenlMessage};
-use netlink_packet_utils::{
-    DecodeError, Emitable, Parseable, ParseableParametrized,
-};
 use std::fmt::Debug;
 
 /// Message type to hold serialized generic netlink payload

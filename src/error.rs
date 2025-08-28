@@ -8,7 +8,7 @@ pub enum GenetlinkError {
     #[error("Failed to send netlink request")]
     ProtocolError(#[from] netlink_proto::Error<RawGenlMessage>),
     #[error("Failed to decode generic packet")]
-    DecodeError(#[from] netlink_packet_utils::DecodeError),
+    DecodeError(#[from] netlink_packet_core::DecodeError),
     #[error("Netlink error message: {0}")]
     NetlinkError(std::io::Error),
     #[error("Cannot find specified netlink attribute: {0}")]
@@ -19,8 +19,8 @@ pub enum GenetlinkError {
 
 // Since `netlink_packet_core::error::ErrorMessage` doesn't impl `Error` trait,
 // it need to convert to `std::io::Error` here
-impl From<netlink_packet_core::error::ErrorMessage> for GenetlinkError {
-    fn from(err_msg: netlink_packet_core::error::ErrorMessage) -> Self {
+impl From<netlink_packet_core::ErrorMessage> for GenetlinkError {
+    fn from(err_msg: netlink_packet_core::ErrorMessage) -> Self {
         Self::NetlinkError(err_msg.to_io())
     }
 }
