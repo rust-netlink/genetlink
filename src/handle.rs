@@ -12,7 +12,7 @@ use netlink_packet_core::{
 };
 use netlink_packet_generic::{GenlFamily, GenlHeader, GenlMessage};
 use netlink_proto::{sys::SocketAddr, ConnectionHandle};
-use std::{fmt::Debug, sync::Arc};
+use std::{collections::HashMap, fmt::Debug, sync::Arc};
 
 /// The generic netlink connection handle
 ///
@@ -36,13 +36,14 @@ use std::{fmt::Debug, sync::Arc};
 /// 2. Query the family id using the builtin resolver.
 /// 3. If the id is in the cache, returning the id in the cache and skip step 4.
 /// 4. The resolver sends `CTRL_CMD_GETFAMILY` request to get the id and records
-/// it in the cache. 5. fill the family id using
-/// [`GenlMessage::set_resolved_family_id()`]. 6. Serialize the payload to
-/// [`RawGenlMessage`]. 7. Send it through the connection.
-///     - The family id filled into `message_type` field in
-///       [`NetlinkMessage::finalize()`].
+///    it in the cache.
+/// 5. fill the family id using [`GenlMessage::set_resolved_family_id()`].
+/// 6. Serialize the payload to [`RawGenlMessage`].
+/// 7. Send it through the connection.
+///    - The family id filled into `message_type` field in
+///      [`NetlinkMessage::finalize()`].
 /// 8. In the response stream, deserialize the payload back to
-/// [`GenlMessage<F>`].
+///    [`GenlMessage<F>`].
 #[derive(Clone, Debug)]
 pub struct GenetlinkHandle {
     handle: ConnectionHandle<RawGenlMessage>,
@@ -69,7 +70,21 @@ impl GenetlinkHandle {
             .await
     }
 
-    /// Clear the resolver's fanily id cache
+    /// Resolve the multicast groups of the given [`GenlFamily`].
+    pub async fn resolve_mcast_groups<F>(
+        &self,
+    ) -> Result<HashMap<String, u32>, GenetlinkError>
+    where
+        F: GenlFamily,
+    {
+        self.resolver
+            .lock()
+            .await
+            .query_family_multicast_groups(self, F::family_name())
+            .await
+    }
+
+    /// Clear the resolver's family id cache
     pub async fn clear_family_id_cache(&self) {
         self.resolver.lock().await.clear_cache();
     }
