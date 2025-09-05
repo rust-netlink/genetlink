@@ -84,7 +84,7 @@ impl GenetlinkHandle {
             .await
     }
 
-    /// Clear the resolver's fanily id cache
+    /// Clear the resolver's family id cache
     pub async fn clear_family_id_cache(&self) {
         self.resolver.lock().await.clear_cache();
     }
