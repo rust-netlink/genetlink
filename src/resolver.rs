@@ -103,70 +103,78 @@ impl Resolver {
         family_name: &'static str,
     ) -> impl Future<Output = Result<HashMap<String, u32>, GenetlinkError>> + '_
     {
-        let mut handle = handle.clone();
-        async move {
-            let family_id = self.query_family_id(&handle, family_name).await?;
+        if let Some(groups) = self.get_groups_cache_by_name(family_name) {
+            Either::Left(futures::future::ready(Ok(groups)))
+        } else {
+            let mut handle = handle.clone();
+            Either::Right(async move {
+                // Create the request message to get family details
+                let mut genlmsg: GenlMessage<GenlCtrl> =
+                    GenlMessage::from_payload(GenlCtrl {
+                        cmd: GenlCtrlCmd::GetFamily,
+                        nlas: vec![GenlCtrlAttrs::FamilyName(
+                            family_name.to_owned(),
+                        )],
+                    });
+                genlmsg.finalize();
+                let mut nlmsg = NetlinkMessage::from(genlmsg);
+                nlmsg.header.flags = NLM_F_REQUEST;
+                nlmsg.finalize();
 
-            // Create the request message to get family details
-            let mut genlmsg: GenlMessage<GenlCtrl> =
-                GenlMessage::from_payload(GenlCtrl {
-                    cmd: GenlCtrlCmd::GetFamily,
-                    nlas: vec![GenlCtrlAttrs::FamilyId(family_id)],
-                });
-            genlmsg.finalize();
-            let mut nlmsg = NetlinkMessage::from(genlmsg);
-            nlmsg.header.flags = NLM_F_REQUEST;
-            nlmsg.finalize();
+                // Send the request
+                let mut res = handle.send_request(nlmsg)?;
 
-            // Send the request
-            let mut res = handle.send_request(nlmsg)?;
+                // Prepare to collect multicast groups
+                let mut mc_groups = HashMap::new();
 
-            // Prepare to collect multicast groups
-            let mut mc_groups = HashMap::new();
+                // Process the response
+                while let Some(result) = res.next().await {
+                    let rx_packet = result?;
+                    match rx_packet.payload {
+                        NetlinkPayload::InnerMessage(genlmsg) => {
+                            for nla in genlmsg.payload.nlas {
+                                if let GenlCtrlAttrs::McastGroups(groups) = nla
+                                {
+                                    for group in groups {
+                                        // 'group' is a Vec<McastGrpAttrs>
+                                        let mut group_name = None;
+                                        let mut group_id = None;
 
-            // Process the response
-            while let Some(result) = res.next().await {
-                let rx_packet = result?;
-                match rx_packet.payload {
-                    NetlinkPayload::InnerMessage(genlmsg) => {
-                        for nla in genlmsg.payload.nlas {
-                            if let GenlCtrlAttrs::McastGroups(groups) = nla {
-                                for group in groups {
-                                    // 'group' is a Vec<McastGrpAttrs>
-                                    let mut group_name = None;
-                                    let mut group_id = None;
-
-                                    for group_attr in group {
-                                        match group_attr {
-                                            McastGrpAttrs::Name(ref name) => {
-                                                group_name = Some(name.clone());
-                                            }
-                                            McastGrpAttrs::Id(id) => {
-                                                group_id = Some(id);
+                                        for group_attr in group {
+                                            match group_attr {
+                                                McastGrpAttrs::Name(
+                                                    ref name,
+                                                ) => {
+                                                    group_name =
+                                                        Some(name.clone());
+                                                }
+                                                McastGrpAttrs::Id(id) => {
+                                                    group_id = Some(id);
+                                                }
                                             }
                                         }
-                                    }
 
-                                    if let (Some(name), Some(id)) =
-                                        (group_name, group_id)
-                                    {
-                                        mc_groups.insert(name.clone(), id);
+                                        if let (Some(name), Some(id)) =
+                                            (group_name, group_id)
+                                        {
+                                            mc_groups.insert(name.clone(), id);
+                                        }
                                     }
                                 }
                             }
                         }
+                        NetlinkPayload::Error(e) => {
+                            return Err(e.into());
+                        }
+                        _ => (),
                     }
-                    NetlinkPayload::Error(e) => {
-                        return Err(e.into());
-                    }
-                    _ => (),
                 }
-            }
 
-            // Update the cache
-            self.groups_cache.insert(family_name, mc_groups.clone());
+                // Update the cache
+                self.groups_cache.insert(family_name, mc_groups.clone());
 
-            Ok(mc_groups)
+                Ok(mc_groups)
+            })
         }
     }
 
