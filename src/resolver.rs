@@ -129,38 +129,34 @@ impl Resolver {
 
                 // Process the response
                 while let Some(result) = res.next().await {
-                    let rx_packet = result?;
-                    match rx_packet.payload {
+                    match result?.payload {
                         NetlinkPayload::InnerMessage(genlmsg) => {
-                            for nla in genlmsg.payload.nlas {
-                                if let GenlCtrlAttrs::McastGroups(groups) = nla
-                                {
-                                    for group in groups {
-                                        // 'group' is a Vec<McastGrpAttrs>
-                                        let mut group_name = None;
-                                        let mut group_id = None;
-
-                                        for group_attr in group {
-                                            match group_attr {
-                                                McastGrpAttrs::Name(
-                                                    ref name,
-                                                ) => {
-                                                    group_name =
-                                                        Some(name.clone());
-                                                }
-                                                McastGrpAttrs::Id(id) => {
-                                                    group_id = Some(id);
-                                                }
-                                            }
-                                        }
-
-                                        if let (Some(name), Some(id)) =
-                                            (group_name, group_id)
-                                        {
-                                            mc_groups.insert(name.clone(), id);
-                                        }
+                            // One specific family id was requested, it can be
+                            // assumed, that the mcast
+                            // groups are part of that family.
+                            let Some(mcast_groups) = genlmsg
+                                .payload
+                                .nlas
+                                .into_iter()
+                                .filter_map(|attr| match attr {
+                                    GenlCtrlAttrs::McastGroups(groups) => {
+                                        Some(groups)
                                     }
+                                    _ => None,
+                                })
+                                .next()
+                            else {
+                                continue;
+                            };
+
+                            for group in mcast_groups.into_iter().filter_map(|attrs| {
+                                match attrs.as_slice() {
+                                    [McastGrpAttrs::Name(name), McastGrpAttrs::Id(i)] |
+                                    [McastGrpAttrs::Id(i), McastGrpAttrs::Name(name)] => Some((name.clone(), *i)),
+                                    _ => None
                                 }
+                            }) {
+                                mc_groups.insert(group.0, group.1);
                             }
                         }
                         NetlinkPayload::Error(e) => {
