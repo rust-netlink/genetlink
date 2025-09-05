@@ -36,13 +36,14 @@ use std::{collections::HashMap, fmt::Debug, sync::Arc};
 /// 2. Query the family id using the builtin resolver.
 /// 3. If the id is in the cache, returning the id in the cache and skip step 4.
 /// 4. The resolver sends `CTRL_CMD_GETFAMILY` request to get the id and records
-/// it in the cache. 5. fill the family id using
-/// [`GenlMessage::set_resolved_family_id()`]. 6. Serialize the payload to
-/// [`RawGenlMessage`]. 7. Send it through the connection.
-///     - The family id filled into `message_type` field in
-///       [`NetlinkMessage::finalize()`].
+///    it in the cache.
+/// 5. fill the family id using [`GenlMessage::set_resolved_family_id()`].
+/// 6. Serialize the payload to [`RawGenlMessage`].
+/// 7. Send it through the connection.
+///    - The family id filled into `message_type` field in
+///      [`NetlinkMessage::finalize()`].
 /// 8. In the response stream, deserialize the payload back to
-/// [`GenlMessage<F>`].
+///    [`GenlMessage<F>`].
 #[derive(Clone, Debug)]
 pub struct GenetlinkHandle {
     handle: ConnectionHandle<RawGenlMessage>,
