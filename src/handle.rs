@@ -6,7 +6,6 @@ use crate::{
     resolver::Resolver,
 };
 use futures::{lock::Mutex, Stream, StreamExt};
-use log::trace;
 use netlink_packet_core::{
     DecodeError, Emitable, NetlinkMessage, NetlinkPayload,
     ParseableParametrized,
@@ -77,7 +76,6 @@ impl GenetlinkHandle {
     where
         F: GenlFamily,
     {
-        trace!("Requesting Groups from Resolver: {:?}", F::family_name());
         self.resolver
             .lock()
             .await
