@@ -242,7 +242,7 @@ mod test {
                     if let GenetlinkError::NetlinkError(io_err) = &e {
                         if io_err.kind() == ErrorKind::NotFound {
                             // Ignore non exist entries
-                            Ok(0)
+                            Ok(HashMap::new())
                         } else {
                             Err(e)
                         }
