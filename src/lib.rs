@@ -7,7 +7,7 @@ mod connection;
 mod error;
 mod handle;
 pub mod message;
-mod resolver;
+pub mod resolver;
 
 #[cfg(feature = "tokio_socket")]
 pub use connection::new_connection;

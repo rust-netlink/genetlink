@@ -3,7 +3,7 @@
 use crate::{
     error::GenetlinkError,
     message::{map_from_rawgenlmsg, map_to_rawgenlmsg, RawGenlMessage},
-    resolver::Resolver,
+    resolver::{Family, Resolver},
 };
 use futures::{lock::Mutex, Stream, StreamExt};
 use netlink_packet_core::{
@@ -36,13 +36,14 @@ use std::{fmt::Debug, sync::Arc};
 /// 2. Query the family id using the builtin resolver.
 /// 3. If the id is in the cache, returning the id in the cache and skip step 4.
 /// 4. The resolver sends `CTRL_CMD_GETFAMILY` request to get the id and records
-/// it in the cache. 5. fill the family id using
-/// [`GenlMessage::set_resolved_family_id()`]. 6. Serialize the payload to
-/// [`RawGenlMessage`]. 7. Send it through the connection.
-///     - The family id filled into `message_type` field in
-///       [`NetlinkMessage::finalize()`].
+///    it in the cache.
+/// 5. fill the family id using [`GenlMessage::set_resolved_family_id()`].
+/// 6. Serialize the payload to [`RawGenlMessage`].
+/// 7. Send it through the connection.
+///    - The family id filled into `message_type` field in
+///      [`NetlinkMessage::finalize()`].
 /// 8. In the response stream, deserialize the payload back to
-/// [`GenlMessage<F>`].
+///    [`GenlMessage<F>`].
 #[derive(Clone, Debug)]
 pub struct GenetlinkHandle {
     handle: ConnectionHandle<RawGenlMessage>,
@@ -58,6 +59,7 @@ impl GenetlinkHandle {
     }
 
     /// Resolve the family id of the given [`GenlFamily`].
+    #[deprecated(note = "use `resolve_family` instead")]
     pub async fn resolve_family_id<F>(&self) -> Result<u16, GenetlinkError>
     where
         F: GenlFamily,
@@ -65,13 +67,32 @@ impl GenetlinkHandle {
         self.resolver
             .lock()
             .await
-            .query_family_id(self, F::family_name())
+            .query_family(self, F::family_name())
+            .await
+            .map(|f| f.id)
+    }
+
+    /// Resolve the family id of the given [`GenlFamily`].
+    pub async fn resolve_family<F>(&self) -> Result<Family, GenetlinkError>
+    where
+        F: GenlFamily,
+    {
+        self.resolver
+            .lock()
+            .await
+            .query_family(self, F::family_name())
             .await
     }
 
-    /// Clear the resolver's fanily id cache
-    pub async fn clear_family_id_cache(&self) {
+    /// Clear the resolver's family id cache
+    pub async fn clear_family_cache(&self) {
         self.resolver.lock().await.clear_cache();
+    }
+
+    /// Clear the resolver's family id cache
+    #[deprecated(note = "use `clear_family_cache` instead")]
+    pub async fn clear_family_id_cache(&self) {
+        self.clear_family_cache().await;
     }
 
     /// Send the generic netlink message and get the response stream
@@ -161,7 +182,7 @@ impl GenetlinkHandle {
             if genlmsg.family_id() == 0 {
                 // The family id is not resolved
                 // Resolve it before send it
-                let id = self.resolve_family_id::<F>().await?;
+                let id = self.resolve_family::<F>().await?.id;
                 genlmsg.set_resolved_family_id(id);
             }
         }
