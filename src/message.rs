@@ -21,10 +21,11 @@
 //! I think this can help developers debug their deserializing implementation.
 use netlink_packet_core::{
     DecodeError, Emitable, NetlinkDeserializable, NetlinkHeader,
-    NetlinkMessage, NetlinkPayload, NetlinkSerializable, Parseable,
-    ParseableParametrized,
+    NetlinkMessage, NetlinkPayload, NetlinkSerializable, ParseableParametrized,
 };
-use netlink_packet_generic::{GenlBuffer, GenlFamily, GenlHeader, GenlMessage};
+use netlink_packet_generic::{
+    constants::GENL_HDRLEN, GenlFamily, GenlHeader, GenlMessage,
+};
 use std::fmt::Debug;
 
 /// Message type to hold serialized generic netlink payload
@@ -92,16 +93,13 @@ impl Emitable for RawGenlMessage {
     }
 }
 
-impl<'a, T> ParseableParametrized<GenlBuffer<&'a T>, u16> for RawGenlMessage
-where
-    T: AsRef<[u8]> + ?Sized,
-{
+impl ParseableParametrized<[u8], u16> for RawGenlMessage {
     fn parse_with_param(
-        buf: &GenlBuffer<&'a T>,
+        buf: &[u8],
         message_type: u16,
     ) -> Result<Self, DecodeError> {
         let header = GenlHeader::parse(buf)?;
-        let payload_buf = buf.payload();
+        let payload_buf = &buf[GENL_HDRLEN..];
         Ok(RawGenlMessage::new(
             header,
             payload_buf.to_vec(),
@@ -130,8 +128,7 @@ impl NetlinkDeserializable for RawGenlMessage {
         header: &NetlinkHeader,
         payload: &[u8],
     ) -> Result<Self, Self::Error> {
-        let buffer = GenlBuffer::new_checked(payload)?;
-        RawGenlMessage::parse_with_param(&buffer, header.message_type)
+        RawGenlMessage::parse_with_param(payload, header.message_type)
     }
 }
 
