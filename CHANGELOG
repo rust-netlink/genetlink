@@ -1,4 +1,14 @@
 # Changelog
+## [0.3.0] - 2026-08-18
+### Breaking changes
+ - Use latest rust-netlink crates. (d48b02e)
+
+### New features
+ - N/A
+
+### Bug fixes
+ - N/A
+
 ## [0.2.7] - 2026-08-04
 ### Breaking changes
  - N/A
