@@ -1,4 +1,16 @@
 # Changelog
+## [0.3.1] - 2026-11-03
+### Breaking changes
+ - N/A
+
+### New features
+ - N/A
+
+### Bug fixes
+ - Replace thiserror with manual Error impls. (8584240)
+ - Use netlink-proto 0.14.1. (d523c4e)
+ - LICENSE: fix LICENSE-MIT. (feb03d0)
+
 ## [0.3.0] - 2026-08-18
 ### Breaking changes
  - Use latest rust-netlink crates. (d48b02e)
