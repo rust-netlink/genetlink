@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: MIT
 
-use crate::message::RawGenlMessage;
-
 /// Error type of genetlink
 #[derive(Debug, Error)]
 pub enum GenetlinkError {
     #[error("Failed to send netlink request")]
-    ProtocolError(#[from] netlink_proto::Error<RawGenlMessage>),
+    ProtocolError(#[from] netlink_proto::NetlinkProtoError),
     #[error("Failed to decode generic packet")]
     DecodeError(#[from] netlink_packet_core::DecodeError),
     #[error("Netlink error message: {0}")]
