@@ -1,8 +1,5 @@
 // SPDX-License-Identifier: MIT
 
-#[macro_use]
-extern crate thiserror;
-
 mod connection;
 mod error;
 mod handle;

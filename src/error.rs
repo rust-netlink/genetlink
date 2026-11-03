@@ -1,18 +1,60 @@
 // SPDX-License-Identifier: MIT
 
+use std::fmt;
+
 /// Error type of genetlink
-#[derive(Debug, Error)]
+#[derive(Debug)]
 pub enum GenetlinkError {
-    #[error("Failed to send netlink request")]
-    ProtocolError(#[from] netlink_proto::NetlinkProtoError),
-    #[error("Failed to decode generic packet")]
-    DecodeError(#[from] netlink_packet_core::DecodeError),
-    #[error("Netlink error message: {0}")]
+    ProtocolError(netlink_proto::NetlinkProtoError),
+    DecodeError(netlink_packet_core::DecodeError),
     NetlinkError(std::io::Error),
-    #[error("Cannot find specified netlink attribute: {0}")]
     AttributeNotFound(String),
-    #[error("Desire netlink message type not received")]
     NoMessageReceived,
+}
+
+impl fmt::Display for GenetlinkError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            GenetlinkError::ProtocolError(_) => {
+                write!(f, "Failed to send netlink request")
+            }
+            GenetlinkError::DecodeError(_) => {
+                write!(f, "Failed to decode generic packet")
+            }
+            GenetlinkError::NetlinkError(err) => {
+                write!(f, "Netlink error message: {}", err)
+            }
+            GenetlinkError::AttributeNotFound(attr) => {
+                write!(f, "Cannot find specified netlink attribute: {}", attr)
+            }
+            GenetlinkError::NoMessageReceived => {
+                write!(f, "Desire netlink message type not received")
+            }
+        }
+    }
+}
+
+impl std::error::Error for GenetlinkError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            GenetlinkError::ProtocolError(err) => Some(err),
+            GenetlinkError::DecodeError(err) => Some(err),
+            GenetlinkError::NetlinkError(err) => Some(err),
+            _ => None,
+        }
+    }
+}
+
+impl From<netlink_proto::NetlinkProtoError> for GenetlinkError {
+    fn from(err: netlink_proto::NetlinkProtoError) -> Self {
+        Self::ProtocolError(err)
+    }
+}
+
+impl From<netlink_packet_core::DecodeError> for GenetlinkError {
+    fn from(err: netlink_packet_core::DecodeError) -> Self {
+        Self::DecodeError(err)
+    }
 }
 
 // Since `netlink_packet_core::error::ErrorMessage` doesn't impl `Error` trait,

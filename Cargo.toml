@@ -22,7 +22,6 @@ netlink-packet-generic = { version = "0.5.0" }
 netlink-packet-core = { version = "0.9.0" }
 tokio = { version = "1.9.0", features = ["rt"], optional = true }
 async-std = { version = "1.9.0", optional = true }
-thiserror = "1.0.26"
 log = "0.4"
 
 [dev-dependencies]
