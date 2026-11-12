@@ -8,6 +8,7 @@ use crate::{
 use futures_util::{lock::Mutex, Stream, StreamExt};
 use netlink_packet_core::{
     Emitable, NetlinkMessage, NetlinkPayload, ParseableParametrized,
+    NLM_F_REQUEST,
 };
 use netlink_packet_generic::{GenlFamily, GenlHeader, GenlMessage};
 use netlink_proto::{sys::SocketAddr, ConnectionHandle};
@@ -124,7 +125,7 @@ impl GenetlinkHandle {
     /// doesn't resolve the family id for you.
     pub fn send_request<F>(
         &mut self,
-        message: NetlinkMessage<GenlMessage<F>>,
+        mut message: NetlinkMessage<GenlMessage<F>>,
     ) -> Result<
         impl Stream<Item = Result<NetlinkMessage<GenlMessage<F>>, GenetlinkError>>,
         GenetlinkError,
@@ -135,6 +136,12 @@ impl GenetlinkHandle {
             + ParseableParametrized<[u8], GenlHeader>
             + Debug,
     {
+        // The kernel only processes messages carrying `NLM_F_REQUEST`, and
+        // `netlink-proto` only tracks a request when that flag (or
+        // `NLM_F_ACK`/`NLM_F_ECHO`) is set. Set it here so callers cannot
+        // accidentally send a message that is ignored and never answered.
+        message.header.flags |= NLM_F_REQUEST;
+
         let raw_msg = map_to_rawgenlmsg(message)?;
 
         let stream = self.handle.request(raw_msg, SocketAddr::new(0, 0))?;
@@ -192,5 +199,42 @@ impl GenetlinkHandle {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(all(test, feature = "tokio_socket"))]
+mod tests {
+    use super::*;
+    use crate::new_connection;
+    use netlink_packet_generic::{GenlCtrlAttr, GenlCtrlCmd, GenlCtrlMessage};
+    use std::time::Duration;
+
+    #[tokio::test]
+    async fn send_request_sets_nlm_f_request() {
+        let (conn, mut handle, _) = new_connection().unwrap();
+        tokio::spawn(conn);
+
+        let genlmsg: GenlMessage<GenlCtrlMessage> =
+            GenlMessage::from_payload(GenlCtrlMessage::new(
+                GenlCtrlCmd::GetFamily,
+                vec![GenlCtrlAttr::FamilyName("nlctrl".to_string())],
+            ));
+        let message = NetlinkMessage::from(genlmsg);
+        assert_eq!(message.header.flags & NLM_F_REQUEST, 0);
+
+        let mut responses = handle.send_request(message).unwrap();
+        let response =
+            tokio::time::timeout(Duration::from_secs(5), responses.next())
+                .await
+                .expect("request without NLM_F_REQUEST was not answered")
+                .expect("response stream ended without a message")
+                .expect("failed to receive response");
+
+        match response.payload {
+            NetlinkPayload::InnerMessage(genlmsg) => {
+                assert_eq!(genlmsg.payload.cmd, GenlCtrlCmd::NewFamily);
+            }
+            payload => panic!("unexpected payload: {:?}", payload),
+        }
     }
 }
