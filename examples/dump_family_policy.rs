@@ -9,8 +9,7 @@ use netlink_packet_core::{
     NetlinkHeader, NetlinkMessage, NetlinkPayload, NLM_F_DUMP, NLM_F_REQUEST,
 };
 use netlink_packet_generic::{
-    ctrl::{nlas::GenlCtrlAttrs, GenlCtrl, GenlCtrlCmd},
-    GenlMessage,
+    GenlCtrlAttr, GenlCtrlCmd, GenlCtrlMessage, GenlMessage,
 };
 
 #[tokio::main]
@@ -26,10 +25,10 @@ async fn main() -> Result<(), Error> {
 
     let nlmsg = NetlinkMessage::new(
         nl_hdr,
-        GenlMessage::from_payload(GenlCtrl {
-            cmd: GenlCtrlCmd::GetPolicy,
-            nlas: vec![GenlCtrlAttrs::FamilyName(argv[1].to_owned())],
-        })
+        GenlMessage::from_payload(GenlCtrlMessage::new(
+            GenlCtrlCmd::GetPolicy,
+            vec![GenlCtrlAttr::FamilyName(argv[1].to_owned())],
+        ))
         .into(),
     );
     let (conn, mut handle, _) = new_connection()?;
