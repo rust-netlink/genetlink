@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{error::GenetlinkError, GenetlinkHandle};
-use futures::StreamExt;
+use futures_util::StreamExt;
 use netlink_packet_core::{NetlinkMessage, NetlinkPayload, NLM_F_REQUEST};
 use netlink_packet_generic::{
     GenlCtrlAttr, GenlCtrlCmd, GenlCtrlMcastGroup, GenlCtrlMessage, GenlMessage,

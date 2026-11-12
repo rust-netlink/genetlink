@@ -5,7 +5,7 @@ use crate::{
     message::{map_from_rawgenlmsg, map_to_rawgenlmsg, RawGenlMessage},
     resolver::{Family, Resolver},
 };
-use futures::{lock::Mutex, Stream, StreamExt};
+use futures_util::{lock::Mutex, Stream, StreamExt};
 use netlink_packet_core::{
     Emitable, NetlinkMessage, NetlinkPayload, ParseableParametrized,
 };

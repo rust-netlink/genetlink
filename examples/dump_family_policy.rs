@@ -3,7 +3,7 @@
 use std::env::args;
 
 use anyhow::{bail, Error};
-use futures::StreamExt;
+use futures_util::StreamExt;
 use genetlink::new_connection;
 use netlink_packet_core::{
     NetlinkHeader, NetlinkMessage, NetlinkPayload, NLM_F_DUMP, NLM_F_REQUEST,
