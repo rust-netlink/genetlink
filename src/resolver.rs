@@ -7,14 +7,14 @@ use netlink_packet_generic::{
     GenlCtrlAttr, GenlCtrlCmd, GenlCtrlMcastGroup, GenlCtrlMessage,
     GenlCtrlOpSet, GenlMessage,
 };
-use std::{collections::HashMap, future::Future};
+use std::collections::HashMap;
 
 /// A [`Resolver`] can resolve information (ID, mutlicast groups) about Netlink
 /// family
 ///
 /// It caches the request for future reuse.
 #[derive(Clone, Debug, Default)]
-pub struct Resolver {
+pub(crate) struct Resolver {
     cache: HashMap<String, Family>,
 }
 
@@ -24,7 +24,7 @@ pub struct Resolver {
 /// multicast groups.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 #[non_exhaustive]
-pub struct Family {
+pub(crate) struct Family {
     /// The name of the family
     pub name: String,
     /// The corresponding ID of the family
@@ -150,21 +150,6 @@ impl Resolver {
 
         self.cache.insert(family_name.to_owned(), family);
         Ok(())
-    }
-
-    #[deprecated(note = "use `cached_family` instead")]
-    pub fn get_cache_by_name(&self, family_name: &str) -> Option<u16> {
-        self.cache.get(family_name).map(|f| f.id)
-    }
-
-    #[deprecated(note = "use `cached_family` instead")]
-    pub fn query_family_id<'a>(
-        &'a mut self,
-        handle: &GenetlinkHandle,
-        family_name: &'a str,
-    ) -> impl Future<Output = Result<u16, GenetlinkError>> + 'a {
-        let handle = handle.clone();
-        async move { Ok(self.query_family(&handle, family_name).await?.id) }
     }
 
     /// Remove a single family from the cache.
