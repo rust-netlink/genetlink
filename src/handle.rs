@@ -54,7 +54,12 @@ pub struct GenetlinkHandle {
 }
 
 impl GenetlinkHandle {
-    pub(crate) fn new(handle: ConnectionHandle<RawGenlMessage>) -> Self {
+    /// Build a handle from a generic netlink [`ConnectionHandle`].
+    ///
+    /// This is useful when the connection was created through
+    /// `netlink_proto`, for example to configure the socket before spawning
+    /// the connection future.
+    pub fn new(handle: ConnectionHandle<RawGenlMessage>) -> Self {
         Self {
             handle,
             resolver: Arc::new(Mutex::new(Resolver::new())),
@@ -199,6 +204,12 @@ impl GenetlinkHandle {
         }
 
         Ok(())
+    }
+}
+
+impl From<ConnectionHandle<RawGenlMessage>> for GenetlinkHandle {
+    fn from(handle: ConnectionHandle<RawGenlMessage>) -> Self {
+        Self::new(handle)
     }
 }
 
