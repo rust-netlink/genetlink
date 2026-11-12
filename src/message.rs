@@ -26,8 +26,19 @@ use netlink_packet_core::{
 };
 use netlink_packet_generic::{GenlFamily, GenlHeader, GenlMessage};
 use std::fmt::Debug;
+use std::sync::LazyLock;
 
-const GENL_HDRLEN: usize = 4;
+/// Size of the generic netlink header on the wire.
+///
+/// Derived from the actual `GenlHeader` serialization instead of duplicating
+/// `GENL_HDRLEN` from the kernel UAPI.
+static GENL_HDRLEN: LazyLock<usize> = LazyLock::new(|| {
+    let mut header = Vec::new();
+    GenlHeader { cmd: 0, version: 0 }
+        .emit(&mut header)
+        .expect("GenlHeader emission cannot fail");
+    header.len()
+});
 
 /// Message type to hold serialized generic netlink payload
 ///
@@ -35,6 +46,7 @@ const GENL_HDRLEN: usize = 4;
 /// you need to use the `UnboundedReceiver<(NetlinkMessage<RawGenlMessage>,
 /// SocketAddr)>` return by [`new_connection()`](crate::new_connection)
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub struct RawGenlMessage {
     pub header: GenlHeader,
     pub payload: Vec<u8>,
@@ -103,7 +115,7 @@ impl ParseableParametrized<[u8], u16> for RawGenlMessage {
         message_type: u16,
     ) -> Result<Self, DecodeError> {
         let header = GenlHeader::parse(buf)?;
-        let payload_buf = &buf[GENL_HDRLEN..];
+        let payload_buf = &buf[*GENL_HDRLEN..];
         Ok(RawGenlMessage::new(
             header,
             payload_buf.to_vec(),
