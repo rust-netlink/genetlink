@@ -14,7 +14,7 @@ use std::{collections::HashMap, future::Future};
 /// It caches the request for future reuse.
 #[derive(Clone, Debug, Default)]
 pub struct Resolver {
-    cache: HashMap<&'static str, Family>,
+    cache: HashMap<String, Family>,
 }
 
 /// Metadata about a Generic Netlink family
@@ -52,13 +52,12 @@ impl Resolver {
     pub async fn query_family(
         &mut self,
         handle: &GenetlinkHandle,
-        family_name: &'static str,
+        family_name: &str,
     ) -> Result<Family, GenetlinkError> {
         if let Some(family) = self.cache.get(family_name) {
             return Ok(family.clone());
         }
 
-        let mut handle = handle.clone();
         {
             let genlmsg: GenlMessage<GenlCtrlMessage> =
                 GenlMessage::from_payload(GenlCtrlMessage::new(
@@ -96,7 +95,7 @@ impl Resolver {
                                 })?;
 
                             self.cache.insert(
-                                family_name,
+                                family_name.to_owned(),
                                 Family {
                                     id: family_id,
                                     name: family_name.to_owned(),
@@ -166,17 +165,17 @@ impl Resolver {
         }
     }
 
-    #[deprecated(note = "use `get` instead")]
+    #[deprecated(note = "use `cached_family` instead")]
     pub fn get_cache_by_name(&self, family_name: &str) -> Option<u16> {
         self.cache.get(family_name).map(|f| f.id)
     }
 
     #[deprecated(note = "use `cached_family` instead")]
-    pub fn query_family_id(
-        &mut self,
+    pub fn query_family_id<'a>(
+        &'a mut self,
         handle: &GenetlinkHandle,
-        family_name: &'static str,
-    ) -> impl Future<Output = Result<u16, GenetlinkError>> + '_ {
+        family_name: &'a str,
+    ) -> impl Future<Output = Result<u16, GenetlinkError>> + 'a {
         let handle = handle.clone();
         async move { Ok(self.query_family(&handle, family_name).await?.id) }
     }
@@ -198,9 +197,12 @@ mod test {
         tokio::spawn(conn);
 
         let mut resolver = Resolver::new();
-        let family = resolver.query_family(&handle, "nlctrl").await.unwrap();
+        let family_name = String::from("nlctrl");
+        let family =
+            resolver.query_family(&handle, &family_name).await.unwrap();
         // nlctrl should always be 0x10
         assert_eq!(family.id, 0x10);
+        assert_eq!(resolver.cached_family(&family_name), Some(family));
     }
 
     const TEST_FAMILIES: &[&str] = &[

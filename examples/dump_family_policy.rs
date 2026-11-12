@@ -31,7 +31,7 @@ async fn main() -> Result<(), Error> {
         ))
         .into(),
     );
-    let (conn, mut handle, _) = new_connection()?;
+    let (conn, handle, _) = new_connection()?;
     tokio::spawn(conn);
 
     let mut responses = handle.request(nlmsg).await?;
