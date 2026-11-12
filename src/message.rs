@@ -57,10 +57,16 @@ impl RawGenlMessage {
     }
 
     /// Serialize the generic netlink payload into raw bytes
-    pub fn from_genlmsg<F>(genlmsg: GenlMessage<F>) -> Result<Self, EncodeError>
+    pub fn from_genlmsg<F>(
+        mut genlmsg: GenlMessage<F>,
+    ) -> Result<Self, EncodeError>
     where
         F: GenlFamily + Emitable + Debug,
     {
+        // Make sure the generic header carries the command and version
+        // advertised by the payload instead of whatever the caller left in
+        // `GenlMessage::header`.
+        genlmsg.finalize();
         let header = genlmsg.header;
         let family_id = genlmsg.family_id();
         let mut payload = Vec::new();
@@ -179,4 +185,107 @@ where
         }
     };
     Ok(NetlinkMessage::new(raw_msg.header, payload))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use netlink_packet_core::{append_u32, parse_u32, NLM_F_REQUEST};
+
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    struct TestPayload {
+        cmd: u8,
+        version: u8,
+        value: u32,
+    }
+
+    impl GenlFamily for TestPayload {
+        fn family_name() -> &'static str {
+            "test"
+        }
+
+        fn command(&self) -> u8 {
+            self.cmd
+        }
+
+        fn version(&self) -> u8 {
+            self.version
+        }
+    }
+
+    impl Emitable for TestPayload {
+        fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
+            append_u32(out, self.value);
+            Ok(())
+        }
+    }
+
+    impl ParseableParametrized<[u8], GenlHeader> for TestPayload {
+        fn parse_with_param(
+            buf: &[u8],
+            header: GenlHeader,
+        ) -> Result<Self, DecodeError> {
+            Ok(Self {
+                cmd: header.cmd,
+                version: header.version,
+                value: parse_u32(buf)?,
+            })
+        }
+    }
+
+    fn test_message() -> GenlMessage<TestPayload> {
+        GenlMessage::from_payload(TestPayload {
+            cmd: 9,
+            version: 2,
+            value: 0x1234,
+        })
+    }
+
+    #[test]
+    fn from_genlmsg_finalizes_header() {
+        let mut message = test_message();
+        message.header = GenlHeader { cmd: 0, version: 0 };
+        message.set_resolved_family_id(42);
+
+        let raw = RawGenlMessage::from_genlmsg(message).unwrap();
+        assert_eq!(raw.header, GenlHeader { cmd: 9, version: 2 });
+        assert_eq!(raw.family_id, 42);
+    }
+
+    #[test]
+    fn raw_message_round_trip() {
+        let message = test_message();
+        let raw = RawGenlMessage::from_genlmsg(message.clone()).unwrap();
+
+        let mut buf = Vec::new();
+        raw.emit(&mut buf).unwrap();
+        let parsed = RawGenlMessage::parse_with_param(&buf, raw.family_id)
+            .expect("failed to parse raw message");
+        assert_eq!(parsed, raw);
+
+        let genlmsg = parsed.parse_into_genlmsg::<TestPayload>().unwrap();
+        assert_eq!(genlmsg.header, message.header);
+        assert_eq!(genlmsg.payload, message.payload);
+    }
+
+    #[test]
+    fn netlink_message_round_trip() {
+        let message = test_message();
+        let mut netlink_message = NetlinkMessage::from(message.clone());
+        netlink_message.header.flags = NLM_F_REQUEST;
+
+        let outgoing = map_to_rawgenlmsg(netlink_message).unwrap();
+        let mut buf = Vec::new();
+        outgoing.emit(&mut buf).unwrap();
+
+        let parsed_raw =
+            NetlinkMessage::<RawGenlMessage>::deserialize(&buf).unwrap();
+        let parsed = map_from_rawgenlmsg::<TestPayload>(parsed_raw).unwrap();
+        match parsed.payload {
+            NetlinkPayload::InnerMessage(genlmsg) => {
+                assert_eq!(genlmsg.payload, message.payload);
+            }
+            payload => panic!("unexpected payload: {:?}", payload),
+        }
+    }
 }
