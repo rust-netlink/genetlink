@@ -27,7 +27,7 @@ log = "0.4"
 
 [dev-dependencies]
 anyhow = "1.0.42"
-tokio = { version = "1.9.0", features = ["rt", "rt-multi-thread", "macros"] }
+tokio = { version = "1.9.0", features = ["rt", "rt-multi-thread", "macros", "time"] }
 
 [[example]]
 name = "list_genetlink_family"
