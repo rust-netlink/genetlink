@@ -7,8 +7,7 @@ use crate::{
 };
 use futures::{lock::Mutex, Stream, StreamExt};
 use netlink_packet_core::{
-    DecodeError, Emitable, NetlinkMessage, NetlinkPayload,
-    ParseableParametrized,
+    Emitable, NetlinkMessage, NetlinkPayload, ParseableParametrized,
 };
 use netlink_packet_generic::{GenlFamily, GenlHeader, GenlMessage};
 use netlink_proto::{sys::SocketAddr, ConnectionHandle};
@@ -40,8 +39,11 @@ use std::{fmt::Debug, sync::Arc};
 /// 5. fill the family id using [`GenlMessage::set_resolved_family_id()`].
 /// 6. Serialize the payload to [`RawGenlMessage`].
 /// 7. Send it through the connection.
-///    - The family id filled into `message_type` field in
-///      [`NetlinkMessage::finalize()`].
+///    - The resolved family id is used as the `message_type` field by
+///      [`NetlinkMessagePayload::message_type()`][message_type] when the
+///      message is emitted.
+///
+/// [message_type]: netlink_packet_core::NetlinkMessagePayload::message_type
 /// 8. In the response stream, deserialize the payload back to
 ///    [`GenlMessage<F>`].
 #[derive(Clone, Debug)]
@@ -103,7 +105,7 @@ impl GenetlinkHandle {
         &mut self,
         mut message: NetlinkMessage<GenlMessage<F>>,
     ) -> Result<
-        impl Stream<Item = Result<NetlinkMessage<GenlMessage<F>>, DecodeError>>,
+        impl Stream<Item = Result<NetlinkMessage<GenlMessage<F>>, GenetlinkError>>,
         GenetlinkError,
     >
     where
@@ -124,7 +126,7 @@ impl GenetlinkHandle {
         &mut self,
         message: NetlinkMessage<GenlMessage<F>>,
     ) -> Result<
-        impl Stream<Item = Result<NetlinkMessage<GenlMessage<F>>, DecodeError>>,
+        impl Stream<Item = Result<NetlinkMessage<GenlMessage<F>>, GenetlinkError>>,
         GenetlinkError,
     >
     where
@@ -133,10 +135,12 @@ impl GenetlinkHandle {
             + ParseableParametrized<[u8], GenlHeader>
             + Debug,
     {
-        let raw_msg = map_to_rawgenlmsg(message);
+        let raw_msg = map_to_rawgenlmsg(message)?;
 
         let stream = self.handle.request(raw_msg, SocketAddr::new(0, 0))?;
-        Ok(stream.map(map_from_rawgenlmsg))
+        Ok(stream.map(|result| {
+            map_from_rawgenlmsg(result?).map_err(GenetlinkError::from)
+        }))
     }
 
     /// Send the generic netlink message without returning the response stream
@@ -165,7 +169,7 @@ impl GenetlinkHandle {
             + ParseableParametrized<[u8], GenlHeader>
             + Debug,
     {
-        let raw_msg = map_to_rawgenlmsg(message);
+        let raw_msg = map_to_rawgenlmsg(message)?;
 
         self.handle.notify(raw_msg, SocketAddr::new(0, 0))?;
         Ok(())

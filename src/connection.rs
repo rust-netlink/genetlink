@@ -46,6 +46,7 @@ where
     S: AsyncSocket,
 {
     let (conn, handle, messages) =
-        netlink_proto::new_connection_with_socket(NETLINK_GENERIC)?;
+        netlink_proto::new_connection_with_socket(NETLINK_GENERIC)
+            .map_err(io::Error::other)?;
     Ok((conn, GenetlinkHandle::new(handle), messages))
 }

@@ -13,8 +13,7 @@ use netlink_packet_core::{
     NetlinkHeader, NetlinkMessage, NetlinkPayload, NLM_F_DUMP, NLM_F_REQUEST,
 };
 use netlink_packet_generic::{
-    ctrl::{nlas::GenlCtrlAttrs, GenlCtrl, GenlCtrlCmd},
-    GenlMessage,
+    GenlCtrlAttr, GenlCtrlCmd, GenlCtrlMessage, GenlMessage,
 };
 
 #[tokio::main]
@@ -23,10 +22,10 @@ async fn main() -> Result<(), Error> {
     nl_hdr.flags = NLM_F_REQUEST | NLM_F_DUMP;
     let nlmsg = NetlinkMessage::new(
         nl_hdr,
-        GenlMessage::from_payload(GenlCtrl {
-            cmd: GenlCtrlCmd::GetFamily,
-            nlas: vec![],
-        })
+        GenlMessage::from_payload(GenlCtrlMessage::new(
+            GenlCtrlCmd::GetFamily,
+            vec![],
+        ))
         .into(),
     );
     let (conn, mut handle, _) = new_connection()?;
@@ -53,11 +52,11 @@ async fn main() -> Result<(), Error> {
     Ok(())
 }
 
-fn print_entry(entry: Vec<GenlCtrlAttrs>) {
+fn print_entry(entry: Vec<GenlCtrlAttr>) {
     let family_id = entry
         .iter()
         .find_map(|nla| {
-            if let GenlCtrlAttrs::FamilyId(id) = nla {
+            if let GenlCtrlAttr::FamilyId(id) = nla {
                 Some(*id)
             } else {
                 None
@@ -67,7 +66,7 @@ fn print_entry(entry: Vec<GenlCtrlAttrs>) {
     let family_name = entry
         .iter()
         .find_map(|nla| {
-            if let GenlCtrlAttrs::FamilyName(name) = nla {
+            if let GenlCtrlAttr::FamilyName(name) = nla {
                 Some(name.as_str())
             } else {
                 None
@@ -77,7 +76,7 @@ fn print_entry(entry: Vec<GenlCtrlAttrs>) {
     let version = entry
         .iter()
         .find_map(|nla| {
-            if let GenlCtrlAttrs::Version(ver) = nla {
+            if let GenlCtrlAttr::Version(ver) = nla {
                 Some(*ver)
             } else {
                 None
@@ -87,7 +86,7 @@ fn print_entry(entry: Vec<GenlCtrlAttrs>) {
     let hdrsize = entry
         .iter()
         .find_map(|nla| {
-            if let GenlCtrlAttrs::HdrSize(hdr) = nla {
+            if let GenlCtrlAttr::HdrSize(hdr) = nla {
                 Some(*hdr)
             } else {
                 None

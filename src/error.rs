@@ -7,6 +7,7 @@ use std::fmt;
 pub enum GenetlinkError {
     ProtocolError(netlink_proto::NetlinkProtoError),
     DecodeError(netlink_packet_core::DecodeError),
+    EncodeError(netlink_packet_core::EncodeError),
     NetlinkError(std::io::Error),
     AttributeNotFound(String),
     NoMessageReceived,
@@ -20,6 +21,9 @@ impl fmt::Display for GenetlinkError {
             }
             GenetlinkError::DecodeError(_) => {
                 write!(f, "Failed to decode generic packet")
+            }
+            GenetlinkError::EncodeError(_) => {
+                write!(f, "Failed to encode generic packet")
             }
             GenetlinkError::NetlinkError(err) => {
                 write!(f, "Netlink error message: {}", err)
@@ -39,6 +43,7 @@ impl std::error::Error for GenetlinkError {
         match self {
             GenetlinkError::ProtocolError(err) => Some(err),
             GenetlinkError::DecodeError(err) => Some(err),
+            GenetlinkError::EncodeError(err) => Some(err),
             GenetlinkError::NetlinkError(err) => Some(err),
             _ => None,
         }
@@ -54,6 +59,12 @@ impl From<netlink_proto::NetlinkProtoError> for GenetlinkError {
 impl From<netlink_packet_core::DecodeError> for GenetlinkError {
     fn from(err: netlink_packet_core::DecodeError) -> Self {
         Self::DecodeError(err)
+    }
+}
+
+impl From<netlink_packet_core::EncodeError> for GenetlinkError {
+    fn from(err: netlink_packet_core::EncodeError) -> Self {
+        Self::EncodeError(err)
     }
 }
 

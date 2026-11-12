@@ -20,13 +20,14 @@
 //! (`netlink_proto` would drop messages if they fails to decode.)
 //! I think this can help developers debug their deserializing implementation.
 use netlink_packet_core::{
-    DecodeError, Emitable, NetlinkDeserializable, NetlinkHeader,
-    NetlinkMessage, NetlinkPayload, NetlinkSerializable, ParseableParametrized,
+    DecodeError, Emitable, EncodeError, NetlinkDeserializable, NetlinkHeader,
+    NetlinkMessage, NetlinkMessagePayload, NetlinkPayload,
+    ParseableParametrized,
 };
-use netlink_packet_generic::{
-    constants::GENL_HDRLEN, GenlFamily, GenlHeader, GenlMessage,
-};
+use netlink_packet_generic::{GenlFamily, GenlHeader, GenlMessage};
 use std::fmt::Debug;
+
+const GENL_HDRLEN: usize = 4;
 
 /// Message type to hold serialized generic netlink payload
 ///
@@ -56,18 +57,20 @@ impl RawGenlMessage {
     }
 
     /// Serialize the generic netlink payload into raw bytes
-    pub fn from_genlmsg<F>(genlmsg: GenlMessage<F>) -> Self
+    pub fn from_genlmsg<F>(genlmsg: GenlMessage<F>) -> Result<Self, EncodeError>
     where
         F: GenlFamily + Emitable + Debug,
     {
-        let mut payload_buf = vec![0u8; genlmsg.payload.buffer_len()];
-        genlmsg.payload.emit(&mut payload_buf);
+        let header = genlmsg.header;
+        let family_id = genlmsg.family_id();
+        let mut payload = Vec::new();
+        genlmsg.payload.emit(&mut payload)?;
 
-        Self {
-            header: genlmsg.header,
-            payload: payload_buf,
-            family_id: genlmsg.family_id(),
-        }
+        Ok(Self {
+            header,
+            payload,
+            family_id,
+        })
     }
 
     /// Try to deserialize the generic netlink payload from raw bytes
@@ -81,15 +84,10 @@ impl RawGenlMessage {
 }
 
 impl Emitable for RawGenlMessage {
-    fn buffer_len(&self) -> usize {
-        self.header.buffer_len() + self.payload.len()
-    }
-
-    fn emit(&self, buffer: &mut [u8]) {
-        self.header.emit(buffer);
-
-        let buffer = &mut buffer[self.header.buffer_len()..];
-        buffer.copy_from_slice(&self.payload);
+    fn emit_value(&self, out: &mut Vec<u8>) -> Result<(), EncodeError> {
+        self.header.emit(out)?;
+        out.extend_from_slice(&self.payload);
+        Ok(())
     }
 }
 
@@ -108,26 +106,17 @@ impl ParseableParametrized<[u8], u16> for RawGenlMessage {
     }
 }
 
-impl NetlinkSerializable for RawGenlMessage {
+impl NetlinkMessagePayload for RawGenlMessage {
     fn message_type(&self) -> u16 {
         self.family_id
-    }
-
-    fn buffer_len(&self) -> usize {
-        <Self as Emitable>::buffer_len(self)
-    }
-
-    fn serialize(&self, buffer: &mut [u8]) {
-        self.emit(buffer)
     }
 }
 
 impl NetlinkDeserializable for RawGenlMessage {
-    type Error = DecodeError;
     fn deserialize(
         header: &NetlinkHeader,
         payload: &[u8],
-    ) -> Result<Self, Self::Error> {
+    ) -> Result<Self, DecodeError> {
         RawGenlMessage::parse_with_param(payload, header.message_type)
     }
 }
@@ -142,13 +131,13 @@ impl From<RawGenlMessage> for NetlinkPayload<RawGenlMessage> {
 /// and serialize the generic netlink payload into raw bytes.
 pub fn map_to_rawgenlmsg<F>(
     message: NetlinkMessage<GenlMessage<F>>,
-) -> NetlinkMessage<RawGenlMessage>
+) -> Result<NetlinkMessage<RawGenlMessage>, EncodeError>
 where
     F: GenlFamily + Emitable + Debug,
 {
     let raw_payload = match message.payload {
         NetlinkPayload::InnerMessage(genlmsg) => {
-            NetlinkPayload::InnerMessage(RawGenlMessage::from_genlmsg(genlmsg))
+            NetlinkPayload::InnerMessage(RawGenlMessage::from_genlmsg(genlmsg)?)
         }
         NetlinkPayload::Done(i) => NetlinkPayload::Done(i),
         NetlinkPayload::Error(i) => NetlinkPayload::Error(i),
@@ -162,7 +151,7 @@ where
             NetlinkPayload::Noop
         }
     };
-    NetlinkMessage::new(message.header, raw_payload)
+    Ok(NetlinkMessage::new(message.header, raw_payload))
 }
 
 /// Helper function to map the [`NetlinkPayload`] types in [`NetlinkMessage`]

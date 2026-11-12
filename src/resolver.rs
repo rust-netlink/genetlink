@@ -4,11 +4,7 @@ use crate::{error::GenetlinkError, GenetlinkHandle};
 use futures::StreamExt;
 use netlink_packet_core::{NetlinkMessage, NetlinkPayload, NLM_F_REQUEST};
 use netlink_packet_generic::{
-    ctrl::{
-        nlas::{GenlCtrlAttrs, McastGrpAttrs},
-        GenlCtrl, GenlCtrlCmd,
-    },
-    GenlMessage,
+    GenlCtrlAttr, GenlCtrlCmd, GenlCtrlMcastGroup, GenlCtrlMessage, GenlMessage,
 };
 use std::{collections::HashMap, future::Future};
 
@@ -64,19 +60,15 @@ impl Resolver {
 
         let mut handle = handle.clone();
         {
-            let mut genlmsg: GenlMessage<GenlCtrl> =
-                GenlMessage::from_payload(GenlCtrl {
-                    cmd: GenlCtrlCmd::GetFamily,
-                    nlas: vec![GenlCtrlAttrs::FamilyName(
-                        family_name.to_owned(),
-                    )],
-                });
-            genlmsg.finalize();
+            let genlmsg: GenlMessage<GenlCtrlMessage> =
+                GenlMessage::from_payload(GenlCtrlMessage::new(
+                    GenlCtrlCmd::GetFamily,
+                    vec![GenlCtrlAttr::FamilyName(family_name.to_owned())],
+                ));
             // We don't have to set family id here, since nlctrl has static
             // family id (0x10)
             let mut nlmsg = NetlinkMessage::from(genlmsg);
             nlmsg.header.flags = NLM_F_REQUEST;
-            nlmsg.finalize();
 
             let mut res = handle.send_request(nlmsg)?;
 
@@ -91,7 +83,7 @@ impl Resolver {
                                 .nlas
                                 .iter()
                                 .find_map(|nla| {
-                                    if let GenlCtrlAttrs::FamilyId(id) = nla {
+                                    if let GenlCtrlAttr::FamilyId(id) = nla {
                                         Some(*id)
                                     } else {
                                         None
@@ -116,37 +108,50 @@ impl Resolver {
                         // One specific family name was requested, it can be
                         // assumed, that the mcast groups are part of that
                         // family.
-                        let Some(mcast_groups) = genlmsg
-                            .payload
-                            .nlas
-                            .into_iter()
-                            .filter_map(|attr| match attr {
-                                GenlCtrlAttrs::McastGroups(groups) => {
-                                    Some(groups)
+                        let Some(mcast_groups) =
+                            genlmsg.payload.nlas.into_iter().find_map(|attr| {
+                                match attr {
+                                    GenlCtrlAttr::McastGroups(groups) => {
+                                        Some(groups)
+                                    }
+                                    _ => None,
                                 }
-                                _ => None,
                             })
-                            .next()
                         else {
                             continue;
                         };
 
-                        for (group_name, group_id) in mcast_groups.into_iter().filter_map(|attrs| {
-                                match attrs.as_slice() {
-                                    [McastGrpAttrs::Name(name), McastGrpAttrs::Id(i)] |
-                                    [McastGrpAttrs::Id(i), McastGrpAttrs::Name(name)] => Some((name.clone(), *i)),
-                                    _ => None
+                        for group in mcast_groups {
+                            let mut group_name = None;
+                            let mut group_id = None;
+                            for attr in group.attrs {
+                                match attr {
+                                    GenlCtrlMcastGroup::Name(name) => {
+                                        group_name = Some(name);
+                                    }
+                                    GenlCtrlMcastGroup::Id(id) => {
+                                        group_id = Some(id);
+                                    }
+                                    _ => {}
                                 }
-                            }) {
-                                self.cache.get_mut(family_name)
-                                // the family_id should've been inserted before, but throw and
-                                // error just to be sure
+                            }
+                            let (Some(group_name), Some(group_id)) =
+                                (group_name, group_id)
+                            else {
+                                continue;
+                            };
+                            self.cache
+                                .get_mut(family_name)
+                                // the family_id should've been inserted before,
+                                // but throw and error just to be sure
                                 .ok_or_else(|| {
                                     GenetlinkError::AttributeNotFound(
                                         "CTRL_ATTR_FAMILY_ID".to_owned(),
                                     )
-                                })?.multicast_groups.insert(group_name, group_id);
-                            }
+                                })?
+                                .multicast_groups
+                                .insert(group_name, group_id);
+                        }
                     }
                     NetlinkPayload::Error(e) => return Err(e.into()),
                     _ => (),
