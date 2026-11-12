@@ -47,6 +47,37 @@ where
 {
     let (conn, handle, messages) =
         netlink_proto::new_connection_with_socket(NETLINK_GENERIC)
-            .map_err(io::Error::other)?;
+            .map_err(proto_error_to_io)?;
     Ok((conn, GenetlinkHandle::new(handle), messages))
+}
+
+fn proto_error_to_io(err: netlink_proto::NetlinkProtoError) -> io::Error {
+    match err {
+        netlink_proto::NetlinkProtoError::SocketIo(err) => err,
+        err => io::Error::other(err),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::{Error, ErrorKind};
+
+    #[test]
+    fn socket_error_kind_is_preserved() {
+        let err =
+            proto_error_to_io(netlink_proto::NetlinkProtoError::SocketIo(
+                Error::from_raw_os_error(13),
+            ));
+        assert_eq!(err.raw_os_error(), Some(13));
+        assert_eq!(err.kind(), ErrorKind::PermissionDenied);
+    }
+
+    #[test]
+    fn other_errors_are_wrapped() {
+        let err = proto_error_to_io(
+            netlink_proto::NetlinkProtoError::ConnectionClosed,
+        );
+        assert_eq!(err.kind(), ErrorKind::Other);
+    }
 }
