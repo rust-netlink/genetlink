@@ -16,7 +16,8 @@ tokio_socket = ["netlink-proto/tokio_socket", "tokio"]
 smol_socket = ["netlink-proto/smol_socket","async-std"]
 
 [dependencies]
-futures = "0.3.16"
+futures-util = "0.3.11"
+futures-channel = "0.3.11"
 netlink-proto = { default-features = false, version = "1.0.0-rc1" }
 netlink-packet-generic = { version = "1.0.0-rc1" }
 netlink-packet-core = { version = "1.0.0-rc1" }
