@@ -103,7 +103,7 @@ impl GenetlinkHandle {
     /// The function resolves the family id before sending the request. If the
     /// resolving process is failed, the function would return an error.
     pub async fn request<F>(
-        &mut self,
+        &self,
         mut message: NetlinkMessage<GenlMessage<F>>,
     ) -> Result<
         impl Stream<Item = Result<NetlinkMessage<GenlMessage<F>>, GenetlinkError>>,
@@ -124,7 +124,7 @@ impl GenetlinkHandle {
     /// This function is identical to [`request()`](Self::request) but it
     /// doesn't resolve the family id for you.
     pub fn send_request<F>(
-        &mut self,
+        &self,
         mut message: NetlinkMessage<GenlMessage<F>>,
     ) -> Result<
         impl Stream<Item = Result<NetlinkMessage<GenlMessage<F>>, GenetlinkError>>,
@@ -152,7 +152,7 @@ impl GenetlinkHandle {
 
     /// Send the generic netlink message without returning the response stream
     pub async fn notify<F>(
-        &mut self,
+        &self,
         mut message: NetlinkMessage<GenlMessage<F>>,
     ) -> Result<(), GenetlinkError>
     where
@@ -167,7 +167,7 @@ impl GenetlinkHandle {
 
     /// Send the notify without resolving family id
     pub fn send_notify<F>(
-        &mut self,
+        &self,
         message: NetlinkMessage<GenlMessage<F>>,
     ) -> Result<(), GenetlinkError>
     where
@@ -183,7 +183,7 @@ impl GenetlinkHandle {
     }
 
     async fn resolve_message_family_id<F>(
-        &mut self,
+        &self,
         message: &mut NetlinkMessage<GenlMessage<F>>,
     ) -> Result<(), GenetlinkError>
     where
@@ -211,7 +211,7 @@ mod tests {
 
     #[tokio::test]
     async fn send_request_sets_nlm_f_request() {
-        let (conn, mut handle, _) = new_connection().unwrap();
+        let (conn, handle, _) = new_connection().unwrap();
         tokio::spawn(conn);
 
         let genlmsg: GenlMessage<GenlCtrlMessage> =
