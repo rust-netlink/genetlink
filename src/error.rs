@@ -4,11 +4,12 @@ use std::fmt;
 
 /// Error type of genetlink
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum GenetlinkError {
     ProtocolError(netlink_proto::NetlinkProtoError),
     DecodeError(netlink_packet_core::DecodeError),
     EncodeError(netlink_packet_core::EncodeError),
-    NetlinkError(std::io::Error),
+    NetlinkError(netlink_packet_core::ErrorMessage),
     AttributeNotFound(String),
     NoMessageReceived,
 }
@@ -16,14 +17,14 @@ pub enum GenetlinkError {
 impl fmt::Display for GenetlinkError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            GenetlinkError::ProtocolError(_) => {
-                write!(f, "Failed to send netlink request")
+            GenetlinkError::ProtocolError(err) => {
+                write!(f, "Failed to send netlink request: {}", err)
             }
-            GenetlinkError::DecodeError(_) => {
-                write!(f, "Failed to decode generic packet")
+            GenetlinkError::DecodeError(err) => {
+                write!(f, "Failed to decode generic packet: {}", err)
             }
-            GenetlinkError::EncodeError(_) => {
-                write!(f, "Failed to encode generic packet")
+            GenetlinkError::EncodeError(err) => {
+                write!(f, "Failed to encode generic packet: {}", err)
             }
             GenetlinkError::NetlinkError(err) => {
                 write!(f, "Netlink error message: {}", err)
@@ -32,7 +33,7 @@ impl fmt::Display for GenetlinkError {
                 write!(f, "Cannot find specified netlink attribute: {}", attr)
             }
             GenetlinkError::NoMessageReceived => {
-                write!(f, "Desire netlink message type not received")
+                write!(f, "Desired netlink message type not received")
             }
         }
     }
@@ -44,7 +45,6 @@ impl std::error::Error for GenetlinkError {
             GenetlinkError::ProtocolError(err) => Some(err),
             GenetlinkError::DecodeError(err) => Some(err),
             GenetlinkError::EncodeError(err) => Some(err),
-            GenetlinkError::NetlinkError(err) => Some(err),
             _ => None,
         }
     }
@@ -68,10 +68,41 @@ impl From<netlink_packet_core::EncodeError> for GenetlinkError {
     }
 }
 
-// Since `netlink_packet_core::error::ErrorMessage` doesn't impl `Error` trait,
-// it need to convert to `std::io::Error` here
+// `netlink_packet_core::ErrorMessage` does not implement the `Error` trait,
+// so it is stored as-is to keep the errno and original request header.
 impl From<netlink_packet_core::ErrorMessage> for GenetlinkError {
     fn from(err_msg: netlink_packet_core::ErrorMessage) -> Self {
-        Self::NetlinkError(err_msg.to_io())
+        Self::NetlinkError(err_msg)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use netlink_packet_core::ErrorMessage;
+    use std::num::NonZeroI32;
+
+    #[test]
+    fn netlink_error_preserves_details() {
+        let mut error = ErrorMessage::default();
+        error.code = NonZeroI32::new(-2);
+        error.header = vec![1, 2, 3];
+
+        let error: GenetlinkError = error.into();
+        match error {
+            GenetlinkError::NetlinkError(error) => {
+                assert_eq!(error.raw_code(), -2);
+                assert_eq!(error.header, vec![1, 2, 3]);
+            }
+            error => panic!("unexpected error: {:?}", error),
+        }
+    }
+
+    #[test]
+    fn no_message_received_display() {
+        assert_eq!(
+            GenetlinkError::NoMessageReceived.to_string(),
+            "Desired netlink message type not received"
+        );
     }
 }
