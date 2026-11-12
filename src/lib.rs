@@ -3,13 +3,14 @@
 mod connection;
 mod error;
 mod handle;
-pub mod message;
-pub mod resolver;
+mod message;
+mod resolver;
 
 #[cfg(feature = "tokio_socket")]
-pub use connection::{new_connection, new_connection_with_groups};
-pub use connection::{
+pub use self::connection::{new_connection, new_connection_with_groups};
+pub use self::connection::{
     new_connection_with_socket, new_connection_with_socket_and_groups,
 };
-pub use error::GenetlinkError;
-pub use handle::GenetlinkHandle;
+pub use self::error::GenetlinkError;
+pub use self::handle::GenetlinkHandle;
+pub use self::message::RawGenlMessage;

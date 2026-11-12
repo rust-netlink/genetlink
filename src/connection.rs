@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-use crate::{message::RawGenlMessage, GenetlinkHandle};
+use crate::{GenetlinkHandle, RawGenlMessage};
 use futures_channel::mpsc::UnboundedReceiver;
 use netlink_packet_core::NetlinkMessage;
 use netlink_proto::{
@@ -37,10 +37,9 @@ pub fn new_connection() -> io::Result<(
 /// Construct a generic netlink connection joined to the given multicast
 /// groups.
 ///
-/// The group IDs are the values returned in
-/// [`Family::multicast_groups`](crate::resolver::Family::multicast_groups).
-/// They must be joined before the connection future is spawned; a separate
-/// connection is required to resolve them first.
+/// The group IDs are the multicast group IDs advertised by the kernel for the
+/// family. They must be joined before the connection future is spawned; a
+/// separate connection is required to resolve them first.
 #[cfg(feature = "tokio_socket")]
 #[allow(clippy::type_complexity)]
 pub fn new_connection_with_groups(
