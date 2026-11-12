@@ -167,6 +167,18 @@ impl Resolver {
         async move { Ok(self.query_family(&handle, family_name).await?.id) }
     }
 
+    /// Remove a single family from the cache.
+    ///
+    /// The kernel can reuse family IDs after a family is unregistered, so a
+    /// long-lived process should invalidate entries when it observes a
+    /// `CTRL_CMD_DELFAMILY`/`CTRL_CMD_NEWFAMILY` notification or knows that a
+    /// module was reloaded.
+    ///
+    /// Returns `true` if the family was cached.
+    pub fn invalidate_family(&mut self, family_name: &str) -> bool {
+        self.cache.remove(family_name).is_some()
+    }
+
     pub fn clear_cache(&mut self) {
         self.cache.clear();
     }
@@ -277,6 +289,19 @@ mod tests {
         assert_eq!(family.ops.len(), 1);
         assert_eq!(family.ops[0].index, 1);
         assert_eq!(family.multicast_groups.get("events"), Some(&100u32));
+    }
+
+    #[test]
+    fn invalidate_family_removes_entry() {
+        let mut resolver = Resolver::new();
+        resolver
+            .update_family("test", vec![GenlCtrlAttr::FamilyId(42)])
+            .unwrap();
+        assert!(resolver.cached_family("test").is_some());
+
+        assert!(resolver.invalidate_family("test"));
+        assert!(resolver.cached_family("test").is_none());
+        assert!(!resolver.invalidate_family("test"));
     }
 
     #[test]

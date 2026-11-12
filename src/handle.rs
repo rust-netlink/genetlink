@@ -81,6 +81,11 @@ impl GenetlinkHandle {
     }
 
     /// Resolve the family id of the given [`GenlFamily`].
+    ///
+    /// The result is cached for the lifetime of the connection. Kernel family
+    /// IDs can be reused after a family is unregistered, so callers should
+    /// invalidate the entry when they observe a family notification or a
+    /// module reload.
     pub async fn resolve_family<F>(&self) -> Result<Family, GenetlinkError>
     where
         F: GenlFamily,
@@ -95,6 +100,13 @@ impl GenetlinkHandle {
     /// Clear the resolver's family id cache
     pub async fn clear_family_cache(&self) {
         self.resolver.lock().await.clear_cache();
+    }
+
+    /// Remove a single family from the resolver's cache.
+    ///
+    /// Returns `true` if the family was cached.
+    pub async fn invalidate_family_cache(&self, family_name: &str) -> bool {
+        self.resolver.lock().await.invalidate_family(family_name)
     }
 
     /// Clear the resolver's family id cache
