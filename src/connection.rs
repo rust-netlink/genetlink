@@ -34,6 +34,25 @@ pub fn new_connection() -> io::Result<(
     new_connection_with_socket()
 }
 
+/// Construct a generic netlink connection joined to the given multicast
+/// groups.
+///
+/// The group IDs are the values returned in
+/// [`Family::multicast_groups`](crate::resolver::Family::multicast_groups).
+/// They must be joined before the connection future is spawned; a separate
+/// connection is required to resolve them first.
+#[cfg(feature = "tokio_socket")]
+#[allow(clippy::type_complexity)]
+pub fn new_connection_with_groups(
+    groups: &[u32],
+) -> io::Result<(
+    Connection<RawGenlMessage>,
+    GenetlinkHandle,
+    UnboundedReceiver<(NetlinkMessage<RawGenlMessage>, SocketAddr)>,
+)> {
+    new_connection_with_socket_and_groups(groups)
+}
+
 /// Variant of [`new_connection`] that allows specifying a socket type to use
 /// for async handling
 #[allow(clippy::type_complexity)]
@@ -49,6 +68,26 @@ where
         netlink_proto::new_connection_with_socket(NETLINK_GENERIC)
             .map_err(proto_error_to_io)?;
     Ok((conn, GenetlinkHandle::new(handle), messages))
+}
+
+/// Variant of [`new_connection_with_groups`] that allows specifying a socket
+/// type to use for async handling.
+#[allow(clippy::type_complexity)]
+pub fn new_connection_with_socket_and_groups<S>(
+    groups: &[u32],
+) -> io::Result<(
+    Connection<RawGenlMessage, S>,
+    GenetlinkHandle,
+    UnboundedReceiver<(NetlinkMessage<RawGenlMessage>, SocketAddr)>,
+)>
+where
+    S: AsyncSocket,
+{
+    let (mut conn, handle, messages) = new_connection_with_socket::<S>()?;
+    for &group in groups {
+        conn.socket_mut().socket_ref().add_membership(group)?;
+    }
+    Ok((conn, handle, messages))
 }
 
 fn proto_error_to_io(err: netlink_proto::NetlinkProtoError) -> io::Error {
@@ -79,5 +118,19 @@ mod tests {
             netlink_proto::NetlinkProtoError::ConnectionClosed,
         );
         assert_eq!(err.kind(), ErrorKind::Other);
+    }
+}
+
+#[cfg(all(test, feature = "tokio_socket"))]
+mod group_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn joins_nlctrl_notify_group() {
+        // `nlctrl` is allocated group ID `GENL_ID_CTRL` (16) and exposes
+        // its "notify" group there.
+        let (conn, _handle, _messages) =
+            new_connection_with_groups(&[16]).unwrap();
+        drop(conn);
     }
 }
