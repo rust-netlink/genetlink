@@ -213,8 +213,8 @@ mod test {
             let family = match resolver.query_family(&handle, name).await {
                 Ok(family) => family,
                 Err(e) => {
-                    if let GenetlinkError::NetlinkError(io_err) = &e {
-                        if io_err.kind() == ErrorKind::NotFound {
+                    if let GenetlinkError::NetlinkError(err) = &e {
+                        if err.to_io().kind() == ErrorKind::NotFound {
                             continue;
                         }
                     }
