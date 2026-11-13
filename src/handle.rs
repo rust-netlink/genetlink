@@ -95,6 +95,17 @@ impl GenetlinkHandle {
     ///
     /// The function resolves the family id before sending the request. If the
     /// resolving process is failed, the function would return an error.
+    ///
+    /// # Errors
+    ///
+    /// Errors are reported at two levels:
+    ///
+    /// - The outer [`Result`] reports synchronous failures that happen before
+    ///   the request is sent, such as family ID resolution or message encoding
+    ///   errors.
+    /// - Errors in the returned stream report asynchronous failures that can
+    ///   only be observed while waiting for the socket, such as connection or
+    ///   decode errors.
     pub async fn request<F>(
         &self,
         mut message: NetlinkMessage<GenlMessage<F>>,
