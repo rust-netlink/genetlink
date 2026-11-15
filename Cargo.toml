@@ -19,7 +19,7 @@ smol_socket = ["netlink-proto/smol_socket"]
 futures-util = "0.3.11"
 futures-channel = "0.3.11"
 netlink-proto = { default-features = false, version = "1.0.0-rc2" }
-netlink-packet-generic = { version = "1.0.0-rc1" }
+netlink-packet-generic = { version = "1.0.0-rc2" }
 netlink-packet-core = { version = "1.0.0-rc2" }
 tokio = { version = "1.9.0", features = ["rt"], optional = true }
 log = "0.4"
