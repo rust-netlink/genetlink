@@ -18,7 +18,7 @@ impl fmt::Display for GenetlinkError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             GenetlinkError::ProtocolError(err) => {
-                write!(f, "Failed to send netlink request: {}", err)
+                write!(f, "Netlink protocol error: {}", err)
             }
             GenetlinkError::DecodeError(err) => {
                 write!(f, "Failed to decode generic packet: {}", err)
@@ -68,6 +68,12 @@ impl From<netlink_packet_core::EncodeError> for GenetlinkError {
     }
 }
 
+impl From<std::io::Error> for GenetlinkError {
+    fn from(err: std::io::Error) -> Self {
+        Self::ProtocolError(netlink_proto::NetlinkProtoError::SocketIo(err))
+    }
+}
+
 // `netlink_packet_core::ErrorMessage` does not implement the `Error` trait,
 // so it is stored as-is to keep the errno and original request header.
 impl From<netlink_packet_core::ErrorMessage> for GenetlinkError {
@@ -93,6 +99,20 @@ mod tests {
             GenetlinkError::NetlinkError(error) => {
                 assert_eq!(error.raw_code(), -2);
                 assert_eq!(error.header, vec![1, 2, 3]);
+            }
+            error => panic!("unexpected error: {:?}", error),
+        }
+    }
+
+    #[test]
+    fn io_error_is_wrapped_as_socket_io() {
+        let error: GenetlinkError =
+            std::io::Error::from_raw_os_error(13).into();
+        match error {
+            GenetlinkError::ProtocolError(
+                netlink_proto::NetlinkProtoError::SocketIo(error),
+            ) => {
+                assert_eq!(error.raw_os_error(), Some(13));
             }
             error => panic!("unexpected error: {:?}", error),
         }

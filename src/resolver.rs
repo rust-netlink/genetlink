@@ -57,7 +57,12 @@ impl Resolver {
 
     /// Queries information about the `family_name`.
     /// Returns the internal ID and multicast groups
-    /// for the family
+    /// for the family.
+    ///
+    /// Results are cached until [`Resolver::invalidate_family()`] or
+    /// [`Resolver::clear_cache()`] is called. The kernel may reuse a family ID
+    /// after unregistering the original family, so the caller is responsible
+    /// for invalidating stale entries.
     pub async fn query_family(
         &mut self,
         handle: &GenetlinkHandle,

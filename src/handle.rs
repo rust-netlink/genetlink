@@ -32,6 +32,18 @@ use std::{fmt::Debug, sync::Arc};
 /// P.s. The cloned handles use the same connection with the original handle.
 /// So, they share the same cache state.
 ///
+/// # Cache invalidation is the caller's responsibility
+/// Cached family IDs stay valid for the lifetime of the connection. The kernel
+/// may unregister a family at any time and later assign its ID to a different
+/// family, for example when a module is reloaded or a network namespace is
+/// torn down. This crate cannot notice that automatically, so every request
+/// after such an event may be sent to the wrong family.
+///
+/// Callers that may outlive a family registration must invalidate the affected
+/// entry with [`GenetlinkHandle::invalidate_family_cache()`] (for example after
+/// observing `CTRL_CMD_DELFAMILY`/`CTRL_CMD_NEWFAMILY` notifications) or clear
+/// the whole cache with [`GenetlinkHandle::clear_family_cache()`].
+///
 /// # Detailed process of sending generic messages
 /// 1. Check if the message's family id is resolved. If yes, jump to step 6.
 /// 2. Query the family id using the builtin resolver.
@@ -79,12 +91,18 @@ impl GenetlinkHandle {
             .map(|family| family.id)
     }
 
-    /// Clear the resolver's family id cache
+    /// Clear the resolver's family id cache.
+    ///
+    /// The caller is responsible for calling this after the kernel may have
+    /// unregistered families or reassigned their IDs.
     pub async fn clear_family_cache(&self) {
         self.resolver.lock().await.clear_cache();
     }
 
     /// Remove a single family from the resolver's cache.
+    ///
+    /// The caller is responsible for calling this after the kernel may have
+    /// unregistered the family or reassigned its ID.
     ///
     /// Returns `true` if the family was cached.
     pub async fn invalidate_family_cache(&self, family_name: &str) -> bool {
@@ -149,9 +167,7 @@ impl GenetlinkHandle {
         let raw_msg = map_to_rawgenlmsg(message)?;
 
         let stream = self.handle.request(raw_msg, SocketAddr::new(0, 0))?;
-        Ok(stream.map(|result| {
-            map_from_rawgenlmsg(result?).map_err(GenetlinkError::from)
-        }))
+        Ok(stream.map(|result| map_from_rawgenlmsg(result?)))
     }
 
     /// Send the generic netlink message without returning the response stream
