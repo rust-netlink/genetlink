@@ -8,10 +8,12 @@ use futures_util::future::{select, Either};
 use netlink_packet_core::NetlinkMessage;
 use netlink_proto::{
     self,
-    sys::{protocols::NETLINK_GENERIC, AsyncSocket, SocketAddr},
+    sys::{AsyncSocket, SocketAddr},
     Connection, NetlinkProtoError,
 };
 use std::io;
+
+const NETLINK_GENERIC: isize = libc::NETLINK_GENERIC as isize;
 
 /// A generic netlink family and one of its multicast groups.
 ///
@@ -163,18 +165,18 @@ pub fn new_connection_with_socket_and_groups<S>(
 where
     S: AsyncSocket,
 {
-    let (mut conn, handle, messages) = new_connection_with_socket::<S>()?;
+    let (conn, handle, messages) = new_connection_with_socket::<S>()?;
     if !groups.is_empty() {
         // Bind the socket so it gets a nonzero portid. The kernel skips
         // sockets whose portid matches the multicast sender's exclusion
         // portid, and portid-zero multicast would otherwise skip an unbound
         // listener, which also has portid zero.
-        conn.socket_mut()
-            .socket_mut()
+        conn.socket_ref()
+            .socket_ref()
             .bind(&SocketAddr::new(0, 0))?;
     }
     for &group in groups {
-        conn.socket_mut().socket_ref().add_membership(group)?;
+        conn.socket_ref().socket_ref().add_membership(group)?;
     }
     Ok((conn, handle, messages))
 }
@@ -264,14 +266,15 @@ mod group_tests {
 
     #[tokio::test]
     async fn joins_nlctrl_notify_group() {
-        let (mut conn, _handle, _messages) = new_connection_with_group_names(
-            &[GenlProtocolFamily::new("nlctrl", "notify")],
-        )
-        .await
-        .unwrap();
+        let (conn, _handle, _messages) =
+            new_connection_with_group_names(&[GenlProtocolFamily::new(
+                "nlctrl", "notify",
+            )])
+            .await
+            .unwrap();
 
         let mut addr = SocketAddr::new(0, 0);
-        conn.socket_mut()
+        conn.socket_ref()
             .socket_ref()
             .get_address(&mut addr)
             .unwrap();
