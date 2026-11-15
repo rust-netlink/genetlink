@@ -1,4 +1,14 @@
 # Changelog
+## [1.0.0-rc2] - 2026-11-15
+### Breaking changes
+ - N/A
+
+### New features
+ - N/A
+
+### Bug fixes
+ - Use netlink-packet-generic 1.0.0-rc2. (94192b9)
+
 ## [1.0.0-rc1] - 2026-11-15
 ### Breaking changes
  - API break: Reduce public API surface. (8a60bbe)
