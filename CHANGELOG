@@ -1,4 +1,29 @@
 # Changelog
+## [1.0.0-rc1] - 2026-11-15
+### Breaking changes
+ - API break: Reduce public API surface. (8a60bbe)
+ - Unify public error type on `GenetlinkError`. (676b331)
+
+### New features
+ - Add multicast group name resolution. (5c96c47)
+
+### Bug fixes
+ - Adopt netlink-packet-core and netlink-proto 1.0.0-rc2. (a90a3b1)
+ - Harden RawGenlMessage and derive header length. (4a5c72b)
+ - Allow invalidating individual cached families. (b6006b9)
+ - Improve CI checks. (1f23e4e)
+ - Clean up Cargo metadata and features. (ad2eb2c)
+ - Add multicast group subscription helpers. (2f6df3a)
+ - Preserve socket error kind when creating connections. (ff2cc96)
+ - Preserve netlink error details. (9a205c6)
+ - Expose GenetlinkHandle constructor. (9e797dd)
+ - Expose additional family metadata. (be5532a)
+ - Relax handle and resolver borrows. (afccfcb)
+ - Finalize generic header before raw serialization. (c8c0e1e)
+ - Set NLM_F_REQUEST when sending requests. (3dda4d5)
+ - Use futures-util and futures-channel. (6a265a4)
+ - Use latest rust-netlink crates. (6d74a08)
+
 ## [0.3.1] - 2026-11-03
 ### Breaking changes
  - N/A
