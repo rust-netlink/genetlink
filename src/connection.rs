@@ -9,9 +9,8 @@ use netlink_packet_core::NetlinkMessage;
 use netlink_proto::{
     self,
     sys::{AsyncSocket, SocketAddr},
-    Connection, NetlinkProtoError,
+    Connection,
 };
-use std::io;
 
 const NETLINK_GENERIC: isize = libc::NETLINK_GENERIC as isize;
 
@@ -66,11 +65,14 @@ impl GenlProtocolFamily {
 /// message. And it can automatic resolve the generic family id before sending.
 #[cfg(feature = "tokio_socket")]
 #[allow(clippy::type_complexity)]
-pub fn new_connection() -> io::Result<(
-    Connection<RawGenlMessage>,
-    GenetlinkHandle,
-    UnboundedReceiver<(NetlinkMessage<RawGenlMessage>, SocketAddr)>,
-)> {
+pub fn new_connection() -> Result<
+    (
+        Connection<RawGenlMessage>,
+        GenetlinkHandle,
+        UnboundedReceiver<(NetlinkMessage<RawGenlMessage>, SocketAddr)>,
+    ),
+    GenetlinkError,
+> {
     new_connection_with_socket()
 }
 
@@ -95,37 +97,40 @@ pub async fn new_connection_with_group_names(
     let group_ids =
         resolve_multicast_group_ids::<netlink_proto::sys::TokioSocket>(groups)
             .await?;
-    new_connection_with_groups(&group_ids).map_err(|err| {
-        GenetlinkError::ProtocolError(NetlinkProtoError::SocketIo(err))
-    })
+    new_connection_with_groups(&group_ids)
 }
 
 #[cfg(feature = "tokio_socket")]
 #[allow(clippy::type_complexity)]
 pub(crate) fn new_connection_with_groups(
     groups: &[u32],
-) -> io::Result<(
-    Connection<RawGenlMessage>,
-    GenetlinkHandle,
-    UnboundedReceiver<(NetlinkMessage<RawGenlMessage>, SocketAddr)>,
-)> {
+) -> Result<
+    (
+        Connection<RawGenlMessage>,
+        GenetlinkHandle,
+        UnboundedReceiver<(NetlinkMessage<RawGenlMessage>, SocketAddr)>,
+    ),
+    GenetlinkError,
+> {
     new_connection_with_socket_and_groups(groups)
 }
 
 /// Variant of [`new_connection`] that allows specifying a socket type to use
 /// for async handling
 #[allow(clippy::type_complexity)]
-pub fn new_connection_with_socket<S>() -> io::Result<(
-    Connection<RawGenlMessage, S>,
-    GenetlinkHandle,
-    UnboundedReceiver<(NetlinkMessage<RawGenlMessage>, SocketAddr)>,
-)>
+pub fn new_connection_with_socket<S>() -> Result<
+    (
+        Connection<RawGenlMessage, S>,
+        GenetlinkHandle,
+        UnboundedReceiver<(NetlinkMessage<RawGenlMessage>, SocketAddr)>,
+    ),
+    GenetlinkError,
+>
 where
     S: AsyncSocket,
 {
     let (conn, handle, messages) =
-        netlink_proto::new_connection_with_socket(NETLINK_GENERIC)
-            .map_err(proto_error_to_io)?;
+        netlink_proto::new_connection_with_socket(NETLINK_GENERIC)?;
     Ok((conn, GenetlinkHandle::new(handle), messages))
 }
 
@@ -146,9 +151,7 @@ where
     S: AsyncSocket,
 {
     let group_ids = resolve_multicast_group_ids::<S>(groups).await?;
-    new_connection_with_socket_and_groups(&group_ids).map_err(|err| {
-        GenetlinkError::ProtocolError(NetlinkProtoError::SocketIo(err))
-    })
+    new_connection_with_socket_and_groups(&group_ids)
 }
 
 /// Low-level variant of [`new_connection_with_group_names()`] that takes
@@ -157,11 +160,14 @@ where
 #[allow(clippy::type_complexity)]
 pub fn new_connection_with_socket_and_groups<S>(
     groups: &[u32],
-) -> io::Result<(
-    Connection<RawGenlMessage, S>,
-    GenetlinkHandle,
-    UnboundedReceiver<(NetlinkMessage<RawGenlMessage>, SocketAddr)>,
-)>
+) -> Result<
+    (
+        Connection<RawGenlMessage, S>,
+        GenetlinkHandle,
+        UnboundedReceiver<(NetlinkMessage<RawGenlMessage>, SocketAddr)>,
+    ),
+    GenetlinkError,
+>
 where
     S: AsyncSocket,
 {
@@ -191,10 +197,7 @@ where
         return Ok(Vec::new());
     }
 
-    let (conn, handle, _messages) =
-        new_connection_with_socket::<S>().map_err(|err| {
-            GenetlinkError::ProtocolError(NetlinkProtoError::SocketIo(err))
-        })?;
+    let (conn, handle, _messages) = new_connection_with_socket::<S>()?;
 
     let resolve = async {
         let mut resolver = Resolver::new();
@@ -226,37 +229,6 @@ where
             Err(err) => Err(err.into()),
         },
         Either::Right((result, _)) => result,
-    }
-}
-
-fn proto_error_to_io(err: netlink_proto::NetlinkProtoError) -> io::Error {
-    match err {
-        netlink_proto::NetlinkProtoError::SocketIo(err) => err,
-        err => io::Error::other(err),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::io::{Error, ErrorKind};
-
-    #[test]
-    fn socket_error_kind_is_preserved() {
-        let err =
-            proto_error_to_io(netlink_proto::NetlinkProtoError::SocketIo(
-                Error::from_raw_os_error(13),
-            ));
-        assert_eq!(err.raw_os_error(), Some(13));
-        assert_eq!(err.kind(), ErrorKind::PermissionDenied);
-    }
-
-    #[test]
-    fn other_errors_are_wrapped() {
-        let err = proto_error_to_io(
-            netlink_proto::NetlinkProtoError::ConnectionClosed,
-        );
-        assert_eq!(err.kind(), ErrorKind::Other);
     }
 }
 

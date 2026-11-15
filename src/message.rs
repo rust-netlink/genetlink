@@ -19,6 +19,7 @@
 //! payload fails to decode instead of just dropping the messages.
 //! (`netlink_proto` would drop messages if they fails to decode.)
 //! I think this can help developers debug their deserializing implementation.
+use crate::GenetlinkError;
 use netlink_packet_core::{
     DecodeError, Emitable, EncodeError, NetlinkDeserializable, NetlinkHeader,
     NetlinkMessage, NetlinkMessagePayload, NetlinkPayload,
@@ -71,7 +72,7 @@ impl RawGenlMessage {
     /// Serialize the generic netlink payload into raw bytes
     pub fn from_genlmsg<F>(
         mut genlmsg: GenlMessage<F>,
-    ) -> Result<Self, EncodeError>
+    ) -> Result<Self, GenetlinkError>
     where
         F: GenlFamily + Emitable + Debug,
     {
@@ -92,7 +93,9 @@ impl RawGenlMessage {
     }
 
     /// Try to deserialize the generic netlink payload from raw bytes
-    pub fn parse_into_genlmsg<F>(&self) -> Result<GenlMessage<F>, DecodeError>
+    pub fn parse_into_genlmsg<F>(
+        &self,
+    ) -> Result<GenlMessage<F>, GenetlinkError>
     where
         F: GenlFamily + ParseableParametrized<[u8], GenlHeader> + Debug,
     {
@@ -149,7 +152,7 @@ impl From<RawGenlMessage> for NetlinkPayload<RawGenlMessage> {
 /// and serialize the generic netlink payload into raw bytes.
 pub fn map_to_rawgenlmsg<F>(
     message: NetlinkMessage<GenlMessage<F>>,
-) -> Result<NetlinkMessage<RawGenlMessage>, EncodeError>
+) -> Result<NetlinkMessage<RawGenlMessage>, GenetlinkError>
 where
     F: GenlFamily + Emitable + Debug,
 {
@@ -176,7 +179,7 @@ where
 /// and try to deserialize the generic netlink payload from raw bytes.
 pub fn map_from_rawgenlmsg<F>(
     raw_msg: NetlinkMessage<RawGenlMessage>,
-) -> Result<NetlinkMessage<GenlMessage<F>>, DecodeError>
+) -> Result<NetlinkMessage<GenlMessage<F>>, GenetlinkError>
 where
     F: GenlFamily + ParseableParametrized<[u8], GenlHeader> + Debug,
 {
